@@ -1,0 +1,15 @@
+{
+  "alertname": "HighCpuUsage",
+  "service": "ad",
+  "labels": {
+    "service": "ad",
+    "severity": "warning",
+    "job": "adservice"
+  },
+  "annotations": {
+    "summary": "ad 服务 CPU 打满",
+    "description": "adservice 的 CPU 使用率持续贴近上限（adServiceHighCpu 开关）。随着负载升高，请求延迟 p99 不断攀升。近期没有代码发版。"
+  },
+  "startsAt": "2026-06-20T10:05:00Z",
+  "scenario_hint": "flagd 开关 adServiceHighCpu 引发的资源型故障"
+}

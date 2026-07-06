@@ -1,0 +1,56 @@
+# s4 capstone —— k8s 后端下部署「泄漏版」recommendation。
+# 与 docker 后端的 `docker run --memory=128m` 等价：给 Pod 设一个偏紧的 memory limit，
+# 自驱负载线程会让 RSS 单调爬升直到触顶 → 容器 OOMKilled → 控制器重建 → RESTARTS 上涨，
+# 是一个真机可观测的运行期故障（诊断 Agent 用 kubectl describe/top 观测）。
+#
+# 镜像 tag 用泄漏 commit 的 git SHA（由 inject.sh 注入 __IMAGE__ 占位），保证
+# 「集群里跑的代码 = GitHub 仓里的代码 = 修复 Agent 的修复目标」三方一致。
+# label `app: recommendation` 供 `kubectl delete pod -l app=recommendation` 迁移止血命中白名单。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation
+  namespace: otel-demo
+  labels:
+    app: recommendation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recommendation
+  template:
+    metadata:
+      labels:
+        app: recommendation
+    spec:
+      containers:
+        - name: recommendation
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: LOAD_RPS
+              value: "400"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              # 偏紧的上限：泄漏进程的工作集爬到这里就被 OOMKilled。等价于 docker --memory=128m。
+              memory: "128Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendation
+  namespace: otel-demo
+  labels:
+    app: recommendation
+spec:
+  selector:
+    app: recommendation
+  ports:
+    - port: 8080
+      targetPort: 8080

@@ -1,0 +1,35 @@
+{
+  "s1": {
+    "alert": "alerts/s1.json",
+    "kind": "dependency",
+    "suspect_service_contains": "product-catalog",
+    "remediation_type": "online_op",
+    "expect_route_any_of": ["feishu_online_op", "auto_remediated"]
+  },
+  "s2": {
+    "alert": "alerts/s2.json",
+    "kind_any_of": ["resource", "config"],
+    "suspect_service_contains": "ad",
+    "remediation_type": "online_op",
+    "expect_route_any_of": ["feishu_online_op", "auto_remediated"]
+  },
+  "s3": {
+    "alert": "alerts/s3.json",
+    "kind": "resource",
+    "suspect_service_contains": "kafka",
+    "remediation_type": "online_op",
+    "expect_route": "feishu_online_op"
+  },
+  "s4": {
+    "alert": "alerts/s4.json",
+    "kind": "deploy_regression",
+    "suspect_service_contains": "recommendation",
+    "expect_route_any_of": ["code_fix_pr", "online_op_and_code_fix_pr", "auto_remediated_and_code_fix_pr", "auto_remediated"],
+    "expect_fix_verified": true
+  },
+  "s_lowconf": {
+    "alert": "alerts/s_lowconf.json",
+    "expect_low_confidence": true,
+    "expect_route": "feishu_low_confidence"
+  }
+}

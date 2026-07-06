@@ -1,0 +1,96 @@
+# AIOps demo stack.
+#
+# Two layers:
+#   1. The OpenTelemetry Demo (Astronomy Shop) — ~10 microservices + load generator
+#      + Prometheus + Jaeger + Grafana + flagd fault injection. Pulled from upstream
+#      via the `include` below so we don't vendor 20 service definitions.
+#   2. Our additions: Milvus (vector store for the agent's incident memory / RAG).
+#
+# The service repo + PRs now live on PUBLIC GitHub (see scripts/seed-github.sh), so
+# there is no local git host in this stack anymore.
+#
+# Usage:
+#   docker compose up -d
+#   ./scripts/seed-github.sh       # create/seed the public upstream recommendation repo + branch protection
+#   ./scripts/inject.sh s2         # flip flagd flag / deploy bad image
+#
+# The upstream OTel demo compose is fetched into ./vendor/otel-demo by scripts/fetch-otel-demo.sh.
+# We `include` it so `docker compose up` brings up the whole observability stack.
+
+include:
+  - path: vendor/otel-demo/docker-compose.yml
+    # If you only want the observability core (lighter), comment the line above and
+    # uncomment scripts/fetch-otel-demo.sh's --core flag.
+
+services:
+  # --- Milvus standalone (vector store for the agent's incident memory / RAG) ---
+  # Three containers per the official standalone topology: etcd (metadata) + minio
+  # (object storage) + milvus itself. The agent writes one "ticket" vector per
+  # diagnosis and does agentic RAG over past tickets. See agent/memory.py.
+  # Image registries (China-friendly, matching the project's existing mirror strategy):
+  #   milvusdb/milvus, minio/minio -> docker.io (served via Colima daemon registry-mirror)
+  #   etcd is on quay.io (NOT covered by the docker.io mirror) -> use the quay proxy prefix
+  #   already used elsewhere in this repo (vendor/otel-demo/.env.override).
+  milvus-etcd:
+    image: quay.dockerproxy.net/coreos/etcd:v3.5.16
+    container_name: aiops-milvus-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - milvus-etcd-data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  milvus-minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: aiops-milvus-minio
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - milvus-minio-data:/minio_data
+    command: minio server /minio_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  milvus-standalone:
+    image: milvusdb/milvus:v2.5.4
+    container_name: aiops-milvus
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-minio:9000
+    volumes:
+      - milvus-data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    ports:
+      - "19530:19530"   # gRPC (pymilvus connects here)
+      - "9091:9091"     # health / metrics
+    depends_on:
+      - milvus-etcd
+      - milvus-minio
+    restart: unless-stopped
+
+volumes:
+  milvus-etcd-data:
+  milvus-minio-data:
+  milvus-data:
