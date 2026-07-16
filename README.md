@@ -17,6 +17,37 @@
 诊断完成后 ─────────────────────────────────→ 编排层把工单向量化存入 Milvus (经验沉淀)
 ```
 
+## 快速开始（Quick Start）
+
+鉴权走本机**已登录的 `claude` CLI**（需已装 Node + claude CLI 并登录），无需配 `ANTHROPIC_API_KEY`。分两档，按想要的"含金量"选。
+
+```bash
+# 安装（Python 3.11+）
+cd AIops-agent
+python3.11 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # FEISHU/GITHUB 等按需填；不填也能本地跑通逻辑
+```
+
+**档位 A：快速逻辑演示（1 分钟，无需 Docker）** —— 不依赖真实监控栈，Agent 据告警文本 + 排查手册 Skill 给出诊断，飞书卡片直接打印到终端：
+
+```bash
+source .env
+python -m agent.run --alert alerts/s2.json --json-out reports/s2.json
+# 终端打出诊断过程 + 路由决策；reports/s2.json 为结构化结果
+```
+
+**档位 B：全真栈端到端闭环（招牌 capstone）** —— 真跑内存泄漏服务到 OOM，Agent 实地观测→定位泄漏 commit→改码→build+test→提 PR（需 Colima/Docker，提 PR 还需配 `GITHUB_TOKEN`，详见 [下方完整快速开始](#快速开始)）：
+
+```bash
+./scripts/fetch-otel-demo.sh        # 拉 OTel Demo compose 到 vendor/
+docker compose up -d                # OTel Demo + Prometheus + Jaeger + Milvus
+./scripts/inject.sh s4              # 注入内存泄漏（等 1-2 分钟让内存爬升）
+python -m agent.run --alert alerts/s4.json
+```
+
+> 完整的后端切换（docker / k8s）、GitHub fork 配置、Milvus 记忆等见 [下方「快速开始」详解](#快速开始)。
+
 ## 架构
 
 代码按职责分三层，先读 `agent/run.py`（总控），再顺着分层往下看：
