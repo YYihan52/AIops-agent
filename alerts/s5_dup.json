@@ -1,0 +1,15 @@
+{
+  "alertname": "HighCpuUsage",
+  "service": "ad",
+  "labels": {
+    "service": "ad",
+    "severity": "warning",
+    "job": "adservice"
+  },
+  "annotations": {
+    "summary": "ad 服务 CPU 打满",
+    "description": "adservice 的 CPU 使用率持续贴近上限（adServiceHighCpu 开关）。随着负载升高，请求延迟 p99 不断攀升。近期没有代码发版。"
+  },
+  "startsAt": "2026-06-20T10:05:01Z",
+  "scenario_hint": "复用 s2 告警指纹，验证幂等去重：需要与 s2 在同一进程内先后触发，第二次命中指纹表 → skipped_duplicate。"
+}

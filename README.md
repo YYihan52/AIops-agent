@@ -33,7 +33,7 @@ cp .env.example .env   # FEISHU/GITHUB 等按需填；不填也能本地跑通�
 
 ```bash
 source .env
-python -m agent.run --alert alerts/s2.json --json-out reports/s2.json
+python3 -m agent.run --alert alerts/s2.json --json-out reports/s2.json
 # 终端打出诊断过程 + 路由决策；reports/s2.json 为结构化结果
 ```
 
@@ -43,7 +43,7 @@ python -m agent.run --alert alerts/s2.json --json-out reports/s2.json
 ./scripts/fetch-otel-demo.sh        # 拉 OTel Demo compose 到 vendor/
 docker compose up -d                # OTel Demo + Prometheus + Jaeger + Milvus
 ./scripts/inject.sh s4              # 注入内存泄漏（等 1-2 分钟让内存爬升）
-python -m agent.run --alert alerts/s4.json
+python3 -m agent.run --alert alerts/s4.json
 ```
 
 > 完整的后端切换（docker / k8s）、GitHub fork 配置、Milvus 记忆等见 [下方「快速开始」详解](#快速开始)。
@@ -131,7 +131,7 @@ cp .env.example .env   # FEISHU/GITHUB 等按需填；不填也能本地跑通�
 未配飞书 webhook 时，卡片直接打印到 stdout；故障诊断处置 Agent 会尝试用 curl 连 Prometheus/Jaeger，连不上则据告警文本与排查手册 Skill 给出（较低置信度的）诊断。
 ```bash
 source .env  # 导出环境变量
-python -m agent.run --alert alerts/s2.json --json-out reports/s2.json
+python3 -m agent.run --alert alerts/s2.json --json-out reports/s2.json
 ```
 
 ### 3. 全真栈端到端闭环
@@ -163,7 +163,7 @@ source .env                         # 导出 GITHUB_* 等环境变量
 # 内存泄漏端到端闭环（capstone）
 ./scripts/inject.sh s4                       # 从泄漏 commit 真 build 镜像 → docker run --memory=128m，内存开始单调上升
 # 等 1-2 分钟让内存爬升：docker stats recommendation / curl localhost:8080/metrics
-python -m agent.run --alert alerts/s4.json   # 故障诊断处置 Agent 实地观测泄漏→定位 commit→代码修复 Agent build+test→提 PR
+python3 -m agent.run --alert alerts/s4.json   # 故障诊断处置 Agent 实地观测泄漏→定位 commit→代码修复 Agent build+test→提 PR
 # → 你的 fork 上出现修复分支，并向上游仓发起一条跨仓 PR（推不上上游 master、含 build+test 验证摘要）
 ```
 
@@ -177,7 +177,7 @@ source .env
 # 2) 注入 s4：build 泄漏镜像 → kind load → kubectl apply Deployment(memory limit 128Mi)
 ./scripts/inject.sh s4
 # 等 1-2 分钟让内存爬升：kubectl top pod -l app=recommendation -n otel-demo
-python -m agent.run --alert alerts/s4.json   # 诊断 Agent 用 kubectl describe/top 观测 OOMKilled+重启→定位 commit→提 PR
+python3 -m agent.run --alert alerts/s4.json   # 诊断 Agent 用 kubectl describe/top 观测 OOMKilled+重启→定位 commit→提 PR
 # 混合根因下会先 kubectl rollout restart 授权工作负载止血、再提根治 PR → route=auto_remediated_and_code_fix_pr
 ```
 
@@ -189,9 +189,9 @@ python -m agent.run --alert alerts/s4.json   # 诊断 Agent 用 kubectl describe
 
 ## Eval
 ```bash
-python -m eval.run --dry-run        # 只校验 fixture（不调用 Agent）
-python -m eval.run                  # 全部
-python -m eval.run --only s2 s4     # 跑指定子集，输出 通过/成本/降级
+python3 -m eval.run --dry-run        # 只校验 fixture（不调用 Agent）
+python3 -m eval.run                  # 全部
+python3 -m eval.run --only s2 s4     # 跑指定子集，输出 通过/成本/降级
 ```
 
 ## 配置（环境变量，见 `.env.example`）

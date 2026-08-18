@@ -1,0 +1,15 @@
+{
+  "alertname": "InfoAdvisoryNoAction",
+  "service": "product-catalog",
+  "labels": {
+    "service": "product-catalog",
+    "severity": "info",
+    "job": "product-catalog"
+  },
+  "annotations": {
+    "summary": "product-catalog 请求量周环比小幅上升（信息类）",
+    "description": "product-catalog 的 QPS 相较上周同一时段上涨约 3%，误差率与 p99 延迟均在 SLO 之内，无任何指标异常。该告警仅用于向 SRE 通报流量趋势，业务侧无需任何动作，也不需要代码修复。"
+  },
+  "startsAt": "2026-06-20T09:00:00Z",
+  "scenario_hint": "info 级流量趋势告警：期望 remediation_type=info_only，路由=info_only（无 online_op、无 code_fix）"
+}

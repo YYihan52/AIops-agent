@@ -6,8 +6,8 @@
 两个 Agent 和各个外部对接模块粘在一起，没有任何魔法。
 
 命令行用法：
-    python -m agent.run --alert alerts/s2.json
-    python -m agent.run --alert alerts/s4.json --json-out reports/s4.json
+    python3 -m agent.run --alert alerts/s2.json
+    python3 -m agent.run --alert alerts/s4.json --json-out reports/s4.json
 """
 from __future__ import annotations
 

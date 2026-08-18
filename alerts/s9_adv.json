@@ -1,0 +1,15 @@
+{
+  "alertname": "MemoryLeakOOMMisleadingContext",
+  "service": "recommendation",
+  "labels": {
+    "service": "recommendation",
+    "severity": "critical",
+    "job": "recommendation"
+  },
+  "annotations": {
+    "summary": "recommendation 服务内存持续上涨、趋向 OOM（伴随若干误导性线索）",
+    "description": "recommendation（Python/gRPC）容器工作集内存单调上升，重启次数不断增加（OOMKilled）。问题从最近一次发版之后立刻开始，怀疑是新上线的某个 commit 引入了无界数据结构。附加信息（可能有误）：也有用户抱怨说是不是 ad 服务的问题？运营还提到过是不是 kafka 消费堆积了？之前另一次事故是 product-catalog 的 flagd 开关引起的，这次不知道是不是同一个原因。请 Agent 自行核对指标/代码/发布记录，不要被这些次生描述带偏。"
+  },
+  "startsAt": "2026-06-20T13:00:00Z",
+  "scenario_hint": "对抗性描述：告警文本混入 ad/kafka/product-catalog 等误导线索，期望 Agent 仍能正确定位到 recommendation，走 code_fix 路径。"
+}

@@ -46,7 +46,7 @@ async def diagnose(alert: dict) -> dict[str, Any]:
     """运行 故障诊断处置 Agent，返回 {diagnosis: Diagnosis, meta: {成本/降级等}}。"""
     prompt = prompts.diagnose_prompt(alert)
     last_errors = ""
-    meta: dict[str, Any] = {"attempts": 0, "usage": {}, "cost_usd": None, "degraded": None}
+    meta: dict[str, Any] = {"attempts": 0, "usage": {}, "cost_usd": None, "degraded": None, "latency_s": 0.0}
 
     # 清空执行台账：本次运行 Agent 自动执行的低风险操作都会被 hook 记进来（跨重试累计）。
     remediation.reset_ledger()
@@ -75,11 +75,12 @@ async def diagnose(alert: dict) -> dict[str, Any]:
             skills="all",  # 加载 .claude/skills/ 下的排查手册（会自动放开 setting_sources 到 project）
         )
 
-        # 跨多次重试累计成本/用量
+        # 跨多次重试累计成本/用量/wall-clock 延迟
         for k, v in out["usage"].items():
             meta["usage"][k] = meta["usage"].get(k, 0) + v
         if out["cost_usd"] is not None:
             meta["cost_usd"] = (meta["cost_usd"] or 0.0) + out["cost_usd"]
+        meta["latency_s"] += out.get("latency_s", 0.0)
         meta["degraded"] = out["degraded"]
 
         diag = _coerce(out["structured"], out["raw"])

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from typing import Any, Optional
 
 from claude_agent_sdk import (
@@ -53,6 +54,8 @@ async def run_sdk(
     skills: Optional[Any] = None,
 ) -> dict[str, Any]:
     """跑一趟 Agent。遇到 Agent 失败不抛异常，而是返回带 degraded 标记的 dict。"""
+    # wall-clock 计时：给评测 MTTR 用；即使 degraded 也要有 latency，所以放最外层
+    t0 = time.perf_counter()
     # 隔离：不继承宿主机 CLI 的记忆/设置，保证每次运行干净可复现
     os.environ["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] = "1"
 
@@ -129,4 +132,5 @@ async def run_sdk(
         "usage": usage,
         "cost_usd": cost_usd,
         "num_turns": num_turns,
+        "latency_s": time.perf_counter() - t0,
     }

@@ -1,6 +1,7 @@
 {
   "s1": {
     "alert": "alerts/s1.json",
+    "runs": 3,
     "kind": "dependency",
     "suspect_service_contains": "product-catalog",
     "remediation_type": "online_op",
@@ -8,6 +9,7 @@
   },
   "s2": {
     "alert": "alerts/s2.json",
+    "runs": 3,
     "kind_any_of": ["resource", "config"],
     "suspect_service_contains": "ad",
     "remediation_type": "online_op",
@@ -15,6 +17,7 @@
   },
   "s3": {
     "alert": "alerts/s3.json",
+    "runs": 3,
     "kind": "resource",
     "suspect_service_contains": "kafka",
     "remediation_type": "online_op",
@@ -22,14 +25,66 @@
   },
   "s4": {
     "alert": "alerts/s4.json",
+    "runs": 3,
     "kind": "deploy_regression",
     "suspect_service_contains": "recommendation",
     "expect_route_any_of": ["code_fix_pr", "online_op_and_code_fix_pr", "auto_remediated_and_code_fix_pr", "auto_remediated"],
-    "expect_fix_verified": true
+    "expect_fix_verified": true,
+    "expect_changed_files_any_of": [
+      "recommendation_server.py",
+      "src/recommendation_server.py",
+      "src/services/RecommendationService.py",
+      "src/recommendation/recommendation_server.py"
+    ]
   },
   "s_lowconf": {
     "alert": "alerts/s_lowconf.json",
+    "runs": 3,
     "expect_low_confidence": true,
     "expect_route": "feishu_low_confidence"
+  },
+  "s5_dup": {
+    "alert": "alerts/s5_dup.json",
+    "runs": 1,
+    "depends_on": "s2",
+    "expect_route": "skipped_duplicate"
+  },
+  "s6_info": {
+    "alert": "alerts/s6_info.json",
+    "runs": 3,
+    "kind_any_of": ["dependency", "resource", "deploy_regression", "config"],
+    "suspect_service_contains": "product-catalog",
+    "remediation_type": "info_only",
+    "expect_route": "info_only"
+  },
+  "s7_hybrid": {
+    "alert": "alerts/s7_hybrid.json",
+    "runs": 1,
+    "kind_any_of": ["resource", "deploy_regression"],
+    "suspect_service_contains": "recommendation",
+    "expect_route_any_of": ["online_op_and_code_fix_pr", "auto_remediated_and_code_fix_pr"],
+    "expect_fix_verified": true,
+    "expect_changed_files_any_of": [
+      "recommendation_server.py",
+      "src/recommendation_server.py",
+      "src/services/RecommendationService.py",
+      "src/recommendation/recommendation_server.py"
+    ]
+  },
+  "s8_fix_fail": {
+    "alert": "alerts/s8_fix_fail.json",
+    "runs": 1,
+    "kind_any_of": ["deploy_regression", "config"],
+    "suspect_service_contains": "recommendation",
+    "remediation_type": "code_fix",
+    "expect_route": "feishu_fix_unverified",
+    "expect_fix_verified": false
+  },
+  "s9_adv": {
+    "alert": "alerts/s9_adv.json",
+    "runs": 3,
+    "kind_any_of": ["deploy_regression", "resource"],
+    "suspect_service_contains": "recommendation",
+    "expect_route_any_of": ["code_fix_pr", "online_op_and_code_fix_pr", "auto_remediated_and_code_fix_pr", "feishu_online_op", "auto_remediated"]
   }
 }

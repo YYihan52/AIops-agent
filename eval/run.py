@@ -2,9 +2,9 @@
 
 检查项：诊断是否正确、路由是否正确（含低置信度降级）、s4 修复是否生效、以及成本/降级指标。
 
-  python -m eval.run                 # 跑 expected.json 里的全部场景
-  python -m eval.run --only s2 s4    # 只跑指定子集
-  python -m eval.run --dry-run       # 只校验 expected.json + 告警文件是否齐全（不真正调用 Agent）
+  python3 -m eval.run                 # 跑 expected.json 里的全部场景
+  python3 -m eval.run --only s2 s4    # 只跑指定子集
+  python3 -m eval.run --dry-run       # 只校验 expected.json + 告警文件是否齐全（不真正调用 Agent）
 """
 from __future__ import annotations
 

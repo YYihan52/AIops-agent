@@ -1,0 +1,15 @@
+{
+  "alertname": "MemoryLeakOOMWithHotfixNeeded",
+  "service": "recommendation",
+  "labels": {
+    "service": "recommendation",
+    "severity": "critical",
+    "job": "recommendation"
+  },
+  "annotations": {
+    "summary": "recommendation 内存持续上涨且需先扩容止血、再改代码根治",
+    "description": "recommendation（Python/gRPC）容器内存单调上升、OOMKilled 次数飙升，用户投诉推荐接口 503。业务方要求先做线上止血（如扩容/重启）恢复服务，同时问题明显来自最近一次发版引入的无界缓存 —— 需要同时触发代码修复 Agent 提 PR 根治，避免下次上量再次 OOM。属于混合根因：既要 online_op 止血，也要 code_fix 根治。"
+  },
+  "startsAt": "2026-06-20T11:00:00Z",
+  "scenario_hint": "混合根因：期望 diagnosis.remediation_type=online_op + also_code_fix=true，路由=online_op_and_code_fix_pr 或 auto_remediated_and_code_fix_pr"
+}

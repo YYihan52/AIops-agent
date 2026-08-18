@@ -103,5 +103,6 @@ async def code_fix(rc: dict, cwd: Optional[str] = None) -> dict[str, Any]:
         "cost_usd": out["cost_usd"],
         "num_turns": out["num_turns"],
         "degraded": out["degraded"],
+        "latency_s": out.get("latency_s", 0.0),
     }
     return {"fix": fix, "meta": meta}
