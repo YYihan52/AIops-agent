@@ -1,0 +1,16 @@
+{
+  "alertname": "RecommendationStatsUndercount",
+  "service": "recommendation",
+  "labels": {
+    "service": "recommendation",
+    "severity": "warning",
+    "job": "recommendation"
+  },
+  "annotations": {
+    "summary": "recommendation 的分类埋点计数在压测下明显低于实际请求数",
+    "description": "压测团队反馈：给 recommendation 打了 10000 次请求，但服务内部新加的分类命中计数器（用于内部分析『哪个类目推荐最多』）最终只统计到几千次，明显丢计数。这个埋点功能是这两周新开发的，还在 `feature/race-stats` 分支上灰度，尚未合并进 master。CPU/内存/延迟均正常，怀疑计数器在并发下有丢更新。"
+  },
+  "startsAt": "2026-08-18T09:10:00Z",
+  "fixture_branch": "feature/race-stats",
+  "scenario_hint": "代码 bug 在 feature/race-stats 分支的 stats.py 里（并发下计数器读改写没加锁）；期望 remediation_type=code_fix，纯代码问题不需要动线上"
+}

@@ -140,7 +140,7 @@ def fix_append() -> str:
 你是一名资深工程师，负责修复一个已被诊断定位的代码 bug。你在一个**已 clone 的服务仓**目录里工作。
 
 ## 强制流程（把"是否提 PR"绑定在验证结果上）
-1. **定位 + 改码**：根据诊断上下文，用 `git log/diff`、`rg`、`Read` 定位可疑代码（如近期发版引入的内存泄漏），**只改根因相关代码**，不要顺手重构。
+1. **定位 + 改码**：根据诊断上下文，用 `git log/diff`、`rg`、`Read` 定位可疑代码（如近期发版引入的内存泄漏），**只改根因相关代码**，不要顺手重构。**如果本次 clone 已经切到了非默认分支**（见上面"已确定的工作分支"），只在这个分支的代码范围内定位——不要跑去改默认分支上的其他历史遗留问题（比如别的场景遗留的旧 bug），那些不是这次告警要修的。
    - 例：把无界结构换成有界——`collections.deque(maxlen=N)` 或显式上限。
 2. **本地验证**（在仓内跑，target 为 Python 服务）：
    - 依赖 + build：`pip install -r requirements.txt`（若有）→ `python -m py_compile $(git ls-files '*.py')` 做语法/导入检查。
@@ -151,6 +151,7 @@ def fix_append() -> str:
      '{config.GITHUB_API_BASE}/repos/{config.GITHUB_UPSTREAM_OWNER}/{config.GITHUB_REPO}/pulls' \\
      -d '{{"title":"...","head":"{_pr_head_prefix()}<branch>","base":"{config.GITHUB_DEFAULT_BRANCH}","body":"...","maintainer_can_modify":true}}'`
    - PR 成功后响应 JSON 里的 `html_url` 就是要回填的 `pr_url`。
+   - `base` 按第 0 步确定的工作分支填，上面的 `{config.GITHUB_DEFAULT_BRANCH}` 只是没有特殊说明时的默认值。
 4. **PR 描述必须包含**：根因说明、改动点、"验证了什么"（跑的 build/test 命令 + 结果摘要）、关联的可疑 commit/告警。
 
 ## 安全约束
@@ -164,11 +165,19 @@ def fix_append() -> str:
 """
 
 
-def fix_prompt(rc: dict) -> str:
+def fix_prompt(rc: dict, branch: str | None = None) -> str:
+    branch_note = (
+        f"\n**已确定的工作分支**：这个 bug 所在的代码不在默认分支上，clone 时已经直接切到了 "
+        f"`{branch}` 分支（这是编排层根据告警的 fixture_branch 字段确定的，不是你要去猜的）。"
+        f"你现在 clone 下来的工作目录就在这个分支上，直接在这上面定位改码；"
+        f"第 3 步提 PR 时 `base` 填 `{branch}`，不要填默认分支。\n"
+        if branch
+        else ""
+    )
     return f"""\
 请修复以下被诊断为代码 bug 的问题。诊断上下文：
 ```json
 {json.dumps(rc, ensure_ascii=False, indent=2)}
 ```
-按强制流程：定位 → 改码 → build+test 验证 → 通过后建分支提 PR。最后输出结构化结果。
+{branch_note}按强制流程：定位 → 改码 → build+test 验证 → 通过后建分支提 PR。最后输出结构化结果。
 """

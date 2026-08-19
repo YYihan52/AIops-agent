@@ -40,7 +40,7 @@ DEDUP_TTL_SECONDS = int(os.getenv("DEDUP_TTL_SECONDS", str(30 * 60)))
 
 # --- 成本控制 ---
 # 每趟 query 的最大轮数 / 超时（秒），防止 Agent 无限循环烧钱
-DIAGNOSE_MAX_TURNS = int(os.getenv("DIAGNOSE_MAX_TURNS", "15"))
+DIAGNOSE_MAX_TURNS = int(os.getenv("DIAGNOSE_MAX_TURNS", "25"))
 DIAGNOSE_TIMEOUT_S = int(os.getenv("DIAGNOSE_TIMEOUT_S", "300"))
 FIX_MAX_TURNS = int(os.getenv("FIX_MAX_TURNS", "25"))
 FIX_TIMEOUT_S = int(os.getenv("FIX_TIMEOUT_S", "600"))

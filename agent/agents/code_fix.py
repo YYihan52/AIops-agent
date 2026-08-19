@@ -22,13 +22,18 @@ from agent.core.schema import FIX_JSON_SCHEMA, FixResult
 from agent.core.sdk_runner import run_sdk
 
 
-def clone_service_repo(service: str) -> Path:
+def clone_service_repo(service: str, branch: Optional[str] = None) -> Path:
     """把可疑服务的 GitHub 仓 clone 到隔离的 workspace 目录。
 
     clone 的是「使用者自己的 fork」（config.GITHUB_FORK_OWNER），这样 Agent 后面推特性分支
     时用使用者自己的 token 即可，无需成为上游协作者；随后向上游发起跨仓 PR。
     clone URL 里内嵌 token，Agent 推特性分支时无需再鉴权。
     仓名默认取 config.GITHUB_REPO（当前 MVP 是单仓）。
+
+    `branch`：如果这个 bug 实际活在某个尚未合并进默认分支的分支上（比如某个场景的告警
+    明确指出"这个功能还在 feature/xxx 分支上开发"），由编排层从告警的 `fixture_branch`
+    字段（而不是让 Agent 自己去猜/relay）显式传进来，clone 时直接切到那个分支，
+    ——这是确定性的代码路径，不依赖 LLM 是否忠实转述这条信息。
     """
     config.WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
     dest = config.WORKSPACE_DIR / config.GITHUB_REPO
@@ -41,7 +46,11 @@ def clone_service_repo(service: str) -> Path:
         auth = "github.com"
     clone_url = f"https://{auth}/{config.GITHUB_FORK_OWNER}/{config.GITHUB_REPO}.git"
 
-    subprocess_run(["git", "clone", "--depth", "50", clone_url, str(dest)])
+    cmd = ["git", "clone", "--depth", "50"]
+    if branch:
+        cmd += ["--branch", branch]
+    cmd += [clone_url, str(dest)]
+    subprocess_run(cmd)
     return dest
 
 
@@ -81,14 +90,18 @@ def parse_fix(out: dict[str, Any]) -> FixResult:
     )
 
 
-async def code_fix(rc: dict, cwd: Optional[str] = None) -> dict[str, Any]:
-    """在 clone 好的仓里运行 代码修复 Agent。返回 {fix: FixResult, meta: {...}}。"""
+async def code_fix(rc: dict, cwd: Optional[str] = None, branch: Optional[str] = None) -> dict[str, Any]:
+    """在 clone 好的仓里运行 代码修复 Agent。返回 {fix: FixResult, meta: {...}}。
+
+    `branch`：见 `clone_service_repo` 的说明——由调用方（`agent/run.py`）从告警的
+    `fixture_branch` 字段透传进来，不经过 LLM 的诊断结果 dict。
+    """
     if cwd is None:
-        repo = clone_service_repo(rc.get("suspect_service", config.GITHUB_REPO))
+        repo = clone_service_repo(rc.get("suspect_service", config.GITHUB_REPO), branch=branch)
         cwd = str(repo)
 
     out = await run_sdk(
-        prompts.fix_prompt(rc),
+        prompts.fix_prompt(rc, branch=branch),
         cwd=cwd,
         allowed_tools=["Bash", "Read", "Write", "Edit", "Grep", "Glob"],  # 比 故障诊断处置 Agent 多了写文件权限
         append_prompt=prompts.fix_append(),

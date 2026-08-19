@@ -1,0 +1,16 @@
+{
+  "alertname": "RecommendationRankingRegression",
+  "service": "recommendation",
+  "labels": {
+    "service": "recommendation",
+    "severity": "warning",
+    "job": "recommendation"
+  },
+  "annotations": {
+    "summary": "recommendation 推荐结果排序反了，冷门商品排在最前面",
+    "description": "运营反馈灰度渠道里的推荐结果几乎全是滞销/冷门商品，热门商品反而被排到后面。这个按热度排序的个性化推荐功能是这两周新开发的，还在 `feature/ranking` 分支上灰度，尚未合并进 master。CPU/内存/延迟均正常，怀疑是排序逻辑的方向写反了（应该是热度从高到低，可能实现成了从低到高）。"
+  },
+  "startsAt": "2026-08-18T09:00:00Z",
+  "fixture_branch": "feature/ranking",
+  "scenario_hint": "代码 bug 在 feature/ranking 分支的 ranking.py 里（排序方向反了）；期望 remediation_type=code_fix，纯代码问题不需要动线上"
+}
