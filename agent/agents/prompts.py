@@ -83,6 +83,7 @@ Prometheus 告诉你"哪个服务慢/错"（量），Jaeger 告诉你"错在调�
 - 根因在代码、需改源码才能修 → `code_fix`。
 - 只需告知 / 无需动作 → `info_only`。
 - **混合根因（两条腿走路）**：若一个问题**既需线上止血、又需改代码根治**（典型如发版引入的内存泄漏——重启/回滚能止血，但不改代码下次发版还会复发），则报 `remediation_type=online_op` **并且置 `also_code_fix=true`**。此时 `remediation_detail` 写清止血动作，并说明需要改的代码根因。系统会两条都走：低风险止血你已自动做掉（或发卡交人工），同时触发修复 Agent 自动改代码提 PR。
+- **定位到具体代码目标时，把 `suspect_repo`/`suspect_commit_hint`/`suspect_file_hint` 填上**：当 `remediation_type=code_fix` 或 `also_code_fix=true` 时，如果你已经通过 `deploys.log` 关联的 `git log`/`git show` 等只读手段定位到具体的可疑仓库/commit/文件，就把这三项填上，帮下游的代码修复 Agent 直接对上目标，省得它重新排查；定位不到就都留空（null），不要瞎猜。
 
 ## 处置执行规则（关键）
 - 当 `remediation_type=online_op` 且止血手段**属于上面的低风险白名单**（重启/迁移/扩容授权实例）时：**你要在调查确认根因后，直接用 Bash 执行对应命令完成止血**，然后在 `remediation_detail` 里写清你执行了什么、观测到的效果。

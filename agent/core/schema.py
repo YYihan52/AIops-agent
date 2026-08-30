@@ -42,6 +42,12 @@ class Diagnosis(BaseModel):
     summary: str
     kind: Kind
     suspect_service: str
+    # 当 remediation_type=code_fix 或 also_code_fix=true 时，若已定位到具体可疑仓库/commit/文件
+    # （如通过 deploys.log 关联的 git log/show），填这三项，帮代码修复 Agent 直接对上目标；
+    # 定位不到就留 None，不强填。
+    suspect_repo: Optional[str] = None
+    suspect_commit_hint: Optional[str] = None
+    suspect_file_hint: Optional[str] = None
     remediation_type: RemediationType
     remediation_detail: str
     confidence: float = Field(ge=0.0, le=1.0)
@@ -91,6 +97,9 @@ DIAGNOSIS_JSON_SCHEMA = {
             "enum": ["dependency", "resource", "deploy_regression", "config"],
         },
         "suspect_service": {"type": "string"},
+        "suspect_repo": {"type": ["string", "null"]},
+        "suspect_commit_hint": {"type": ["string", "null"]},
+        "suspect_file_hint": {"type": ["string", "null"]},
         "remediation_type": {
             "type": "string",
             "enum": ["online_op", "code_fix", "info_only"],
