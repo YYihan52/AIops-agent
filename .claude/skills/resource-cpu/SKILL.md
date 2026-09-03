@@ -9,18 +9,19 @@ description: CPU / 资源型排查手册。当 CPU 飙高、延迟随流量上�
 
 ## 起手式查询清单
 
-1. **CPU 使用率**（Prometheus）：
+1. **该服务先查有哪些指标**（Prometheus）：
    ```
-   curl -s 'http://localhost:9090/api/v1/query?query=rate(container_cpu_usage_seconds_total{name=~".*adservice.*"}[5m])'
+   curl -s --data-urlencode 'query={service_name="<svc>"}' 'http://localhost:9090/api/v1/query'
    ```
+   本环境没有 `container_cpu_*` 一类的 cAdvisor 指标；CPU 信号按语言栈落在不同指标名上——JVM 服务（如 ad）用 `jvm_cpu_recent_utilization_ratio{service_name="<svc>"}`，Python 服务用 `process_runtime_cpython_cpu_utilization_ratio{service_name="<svc>"}`，其它语言用 `process_cpu_utilization_ratio{service_name="<svc>"}`；直接用第一步查到的指标名，不要凭猜测拼。若该服务在 Prometheus 里没有任何指标，跳过 Prometheus，直接用 `docker stats`/`docker inspect` 判断。
 
 2. **实时**：（k8s）`kubectl top pod -l app=<svc>`；（docker）`docker stats --no-stream` 看该服务 CPU。
 
-3. **流量 vs 热点**：对比请求量（`rate(app_*_requests_total[5m])`）。
-   - 请求量同步上升 → 流量驱动，扩容/限流即可。
-   - 请求量平稳但 CPU 飙高 → 代码热点（死循环/低效算法），可能 `code_fix`。
+3. **流量 vs 热点**：对比该服务的调用量（`traces_span_metrics_calls_total{service_name="<svc>"}`）。
+   - 调用量同步上升 → 流量驱动，扩容/限流即可。
+   - 调用量平稳但 CPU 飙高 → 代码热点（死循环/低效算法），可能 `code_fix`。
 
-4. **延迟**：`histogram_quantile(0.99, rate(..._duration_seconds_bucket[5m]))` 看 p99 是否随之恶化。
+4. **延迟**：`histogram_quantile(0.99, rate(traces_span_metrics_duration_milliseconds_bucket{service_name="<svc>"}[5m]))` 看 p99 是否随之恶化。
 
 ## 判定
 

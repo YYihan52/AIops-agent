@@ -12,11 +12,12 @@ description: 内存泄漏 / OOM 排查手册。当告警涉及内存单调上升
 > 命令按后端给出：**k8s 为主**（生产形态），docker 为本地默认后端的等价写法。用哪套取决于当前环境。
 
 1. **看内存趋势**（Prometheus）：
-   ```
-   curl -s 'http://localhost:9090/api/v1/query_range?query=container_memory_working_set_bytes{pod=~".*recommendation.*"}&start=<from>&end=<to>&step=30s'
-   ```
-   判断是否**单调上升**（泄漏特征）而非锯齿（正常 GC）。
-   注意：本地 kind / Colima 下 Prometheus 可能没有 cAdvisor 容器内存指标，此时直接用下面的 `kubectl top` / `kubectl describe`（或 docker `stats`/`inspect`）+ 服务自身 `/metrics` 观测。
+   - k8s（有 cAdvisor 时）：
+     ```
+     curl -sg 'http://localhost:9090/api/v1/query_range?query=container_memory_working_set_bytes{pod=~".*<svc>.*"}&start=<from>&end=<to>&step=30s'
+     ```
+   - docker（本地默认后端）：这里没有 cAdvisor 容器内存指标，`container_memory_*` 查不到数据，不要在这上面反复尝试；JVM 服务（如 ad）可用 `jvm_memory_used_bytes{service_name="<svc>"}` 的 `query_range` 看趋势，其它服务直接跳到第 2 步用 `docker stats`/`inspect` 观测。
+   - 判断是否**单调上升**（泄漏特征）而非锯齿（正常 GC）。
 
 2. **实时内存**：（k8s）`kubectl top pod -l app=<svc>`；（docker）`docker stats --no-stream`。
 
@@ -27,9 +28,9 @@ description: 内存泄漏 / OOM 排查手册。当告警涉及内存单调上升
 4. **关联近期发版**（内存上升通常是新代码引入）：
    - k8s：`kubectl rollout history deploy/<svc>`；镜像 tag 含 git SHA：`kubectl get deploy/<svc> -o jsonpath='{.spec.template.spec.containers[0].image}'`。
    - docker：`docker inspect <container> --format '{{.Config.Image}}'`。
-   - 查 `deploys.log`（本仓根目录，记录最近部署的镜像 tag↔SHA↔时间）。
+   - 查 `deploys.log`：就在你当前工作目录（cwd）根下，直接 `cat deploys.log` 或 `ls` 看一眼即可拿到，不要用 `find /` 全盘搜——记录最近部署的镜像 tag↔SHA↔时间。
 
-5. **映射到代码**：拿发版 SHA 在服务仓 `git log/show <sha>` 看 diff，定位可疑改动（如向模块级容器无界 append）。
+5. **映射到代码**：该服务的代码仓已经克隆在你当前工作目录下的 `workspace/<svc>/`（相对路径，如 `workspace/recommendation/`），直接 `cd workspace/<svc> && git log/show <sha>` 看 diff、`cat <file>`/`rg` 读源码定位可疑改动（如向模块级容器无界 append），不需要 `find`/`ls` 满世界猜它克隆在哪。**不要** `docker exec` 进容器里跑 `grep`/`cat` 看源码——会被拦截，源码直接在 `workspace/<svc>/` 本地读就行。
 
 ## 判定
 

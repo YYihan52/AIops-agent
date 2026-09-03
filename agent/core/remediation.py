@@ -108,11 +108,13 @@ _DOCKER_ACTIONS: list[LowRiskAction] = [
         rf"^docker\s+restart\s+(?:-t\s+\d+\s+)?(?P<target>{_TARGET})$",
         "重启单实例：docker restart <实例>（临时止血，如清掉泄漏进程的内存、重置卡死状态）。",
     ),
-    # 迁移/重建单实例：`docker compose up -d --force-recreate <target>`。
+    # 迁移/重建单实例：`docker compose up -d --force-recreate <target>`
+    # 或独立二进制 `docker-compose up -d --force-recreate <target>`
+    # （有些环境只装了其中一种，两种都放行；先用 `docker compose version`/`docker-compose version` 确认本机哪个可用）。
     LowRiskAction(
         "migrate_instance",
-        rf"^docker\s+compose\s+up\s+-d\s+--force-recreate\s+(?P<target>{_TARGET})$",
-        "迁移/重建单实例：docker compose up -d --force-recreate <实例>（把实例重新拉起，等价于重新调度）。",
+        rf"^docker(?:\s+compose|-compose)\s+up\s+-d\s+--force-recreate\s+(?P<target>{_TARGET})$",
+        "迁移/重建单实例：docker compose up -d --force-recreate <实例>（或 docker-compose，视本机装的是插件还是独立二进制）（把实例重新拉起，等价于重新调度）。",
     ),
     # 临时扩容单实例资源上限：`docker update --cpus <n> --memory <m> <target>`。
     LowRiskAction(

@@ -32,9 +32,10 @@ _READONLY_DENY = [
     # docker：rm/stop/kill/rmi/exec/run 一律禁（删除资源、进容器改状态都属高风险）。
     # restart/update/compose 交给白名单先判，未命中白名单则由 _WRITE_FALLBACK_DENY 兜底拦下。
     r"\bdocker\s+(rm|stop|kill|rmi|exec|run)\b",
-    r"\bgit\s+(push|commit|merge|reset|rebase|checkout\s+-b|branch|tag|clone)\b",
+    r"\bgit\s+(push|commit|merge|reset|rebase|checkout\s+-b|tag|clone)\b",
+    r"\bgit\s+branch\s+(-[dDmM]\b|(?!-)\S)",  # git branch 只拦创建/删除/改名；纯查看（-a/-v/--list/无参数）放行
     r"\brm\s+-rf\b",
-    r">\s*/",  # 拦截明显的「重定向写文件」企图
+    r">\s*(?!/dev/(?:null|stdout|stderr)\b)/",  # 拦截重定向写文件；放过 2>/dev/null 这类丢弃输出的读命令
     # 高风险数据面/控制面操作：redis/db/删除，绝不自动执行（即便配了白名单也不放）。
     r"\bredis-cli\b",
     r"\b(mysql|psql|mongo|mongosh)\b",
@@ -45,14 +46,16 @@ _READONLY_DENY = [
 # docker compose down 等）。这样「变更类命令」要么命中白名单被放行，要么一律被拦，不留灰色地带。
 # （kubectl 的变更动词已在 _READONLY_DENY 里覆盖，无需在此重复。）
 _WRITE_FALLBACK_DENY = [
-    r"\bdocker\s+(restart|update|pause|unpause|compose)\b",
+    r"\bdocker\s+(restart|update|pause|unpause)\b",
+    r"\bdocker(?:\s+compose|-compose)\b(?![.*])",  # 排除 docker-compose.yml / docker-compose*.yml 这类文件名/glob，只拦命令调用
 ]
 
 # 两个 Agent 都禁止的「线上基础设施变更」类命令（代码修复 Agent 能改码，但一样不许动线上）
 _ONLINE_OP_DENY = [
     r"\bkubectl\s+(apply|delete|scale|edit|patch|rollout\s+undo|rollout\s+restart|cordon|drain|set|exec|cp|attach|port-forward)\b",
     r"\bhelm\s+(install|upgrade|uninstall|rollback|delete)\b",
-    r"\bdocker\s+(rm|stop|restart|kill|rmi|update|compose\s+(up|down|restart|stop))\b",
+    r"\bdocker\s+(rm|stop|restart|kill|rmi|update)\b",
+    r"\bdocker(?:\s+compose|-compose)\s+(up|down|restart|stop)\b",
     r"\brm\s+-rf\b",
     r"\bgit\s+push\s+.*--force\b|\bgit\s+push\s+.*\bmaster\b|\bgit\s+push\s+.*\bmain\b",
 ]

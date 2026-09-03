@@ -45,9 +45,15 @@ def _observability_tools_block() -> str:
         )
     return (
         "- 容器/Pod：`docker ps`、`docker stats --no-stream`、"
-        "`docker inspect --format '{{.RestartCount}} {{.State.OOMKilled}}'`、`docker compose logs <svc> --tail 200`。\n"
+        "`docker inspect --format '{{.RestartCount}} {{.State.OOMKilled}}'`、`docker logs <svc> --tail 200`。\n"
         "- 发版历史：镜像 tag（含 git SHA）/ `deploys.log`（k8s 环境用 `kubectl rollout history deploy/<svc>`）。"
     )
+
+
+def _rag_tool_line() -> str:
+    if not config.RAG_ENABLED:
+        return ""
+    return "- **历史工单检索（工具）**：`search_past_incidents` 工具可语义检索历史上处理过的相似诊断工单（根因/处置经验）。"
 
 
 def diagnose_append() -> str:
@@ -64,19 +70,23 @@ def diagnose_append() -> str:
 
 ## 可用工具面（bash + 现成 CLI）
 {_observability_tools_block()}
-- 指标（Prometheus，PromQL）：`curl -s '{config.PROMETHEUS_URL}/api/v1/query?query=<PromQL>'`，区间用 `query_range`。
-- **调用链 trace（Jaeger）**：`curl -s '{config.JAEGER_URL}/api/services'`、`curl -s '{config.JAEGER_URL}/api/traces?service=<svc>&lookback=1h&limit=20'`、`curl -s '{config.JAEGER_URL}/api/dependencies'`。
-- 码仓：`git log/show/diff`（只读）定位可疑 commit。
+- 指标（Prometheus，PromQL）：先用 `curl -s --data-urlencode 'query={{service_name="<svc>"}}' '{config.PROMETHEUS_URL}/api/v1/query'` 查这个服务当前实际暴露的指标名，直接用查到的名字去查，不要凭猜测拼指标名（同一环境里不同服务的指标命名规律不统一，猜名字会白跑很多轮）；返回空说明该服务在 Prometheus 里没有任何指标，跳过 Prometheus，直接用 Jaeger/日志/flagd 定位。跨服务错误率的通用指标：`traces_span_metrics_calls_total{{service_name="<svc>",status_code="STATUS_CODE_ERROR"}}`（按 `span_kind`/`span_name` 能看出具体是哪次调用报的错），区间查询用 `query_range`。
+- **调用链 trace（Jaeger）**：`curl -s '{config.JAEGER_URL}/jaeger/ui/api/services'`、`curl -s '{config.JAEGER_URL}/jaeger/ui/api/traces?service=<svc>&lookback=1h&limit=20'`、`curl -s '{config.JAEGER_URL}/jaeger/ui/api/dependencies'`。
+- **重要**：只要 URL 里带字面的 `{{`/`}}`（PromQL 标签选择器、Jaeger 的 `tags={{"error":"true"}}`），一律用 `curl --data-urlencode 'query=...'` 传参，或者给 `curl` 加 `-g`；否则 curl 会把花括号当成自己的 URL glob 语法解析，请求会失真甚至被拆成多条，报错跟查询本身是否正确无关。
+- **功能开关当前值（flagd OFREP）**：`curl -s -X POST '{config.FLAGD_OFREP_URL}/ofrep/v1/evaluate/flags/<flag-name>' -H 'Content-Type: application/json' -d '{{}}'`，返回体 `value` 就是该开关当前实际值，已经是权威证据、足够写进 evidence。查完这一条就不要再用 `grep`/`rg`/`find`/`Grep` 工具去搜这个 flag 名在代码仓库或 flagd 静态配置文件（`*.flagd.json` 等）里的定义——OFREP 的实时值不需要额外的静态文件交叉验证。
+- 码仓：目标服务的代码已经克隆在你当前工作目录下的 `workspace/<svc>/`（如 `workspace/recommendation/`），`cd workspace/<svc>` 后用 `git log/show/diff`（只读）定位可疑 commit、`cat`/`rg` 读源码；不需要 `find`/`ls` 去猜它克隆在哪，也不要 `docker exec` 进容器看源码。
 - **排查手册（Skill）**：内存/依赖/CPU/队列四类排查手册已作为 Skill 按需可用（memory-oom / dependency-error / resource-cpu / queue-backlog）——根据告警信号，相关手册会自动加载，给出该类故障的起手式只读查询清单与判定规则。
-- **历史工单检索（工具）**：`search_past_incidents` 工具可语义检索历史上处理过的相似诊断工单（根因/处置经验）。
+{_rag_tool_line()}
 
 ## 三类信号交叉关联
 Prometheus 告诉你"哪个服务慢/错"（量），Jaeger 告诉你"错在调用链哪一跳、上下游是谁"（链路），logs 给细节。依赖型根因必须用 Jaeger 佐证报错的那一跳 span。
 
 ## 排查 playbook
-1. 根据告警信号，参考对应类型的排查手册 Skill（内存/依赖/CPU/队列），按其起手式查询清单执行。
-2. **善用历史经验**：遇到疑似似曾相识的故障时，用 `search_past_incidents` 检索历史相似工单，参考过去的根因定位与处置方式（但须结合当前实时观测独立判断，不要盲目照搬）。
-3. 证据不足时**主动调低 confidence**，倾向降级人工。
+1. 告警的 `service`/`labels.service` 字段已经指明了受影响服务，直接针对这个服务展开排查，不要再用全局跨服务查询去"找出哪个服务错误率最高"。
+2. 根据告警信号，参考对应类型的排查手册 Skill（内存/依赖/CPU/队列），按其起手式查询清单执行。
+3. **善用历史经验**：遇到疑似似曾相识的故障时，用 `search_past_incidents` 检索历史相似工单，参考过去的根因定位与处置方式（但须结合当前实时观测独立判断，不要盲目照搬）。
+4. 排查下游依赖时，若 `docker ps -a`/`kubectl get pod`里根本找不到某个依赖的容器/工作负载，直接判定该依赖缺失/不可达即可作为证据，不需要再去代码仓库或 compose 配置里找它本该在哪里定义。
+5. 证据不足时**主动调低 confidence**，倾向降级人工。
 
 ## remediation_type 判定规则
 - 需要动线上（扩容/重启/回滚/改配置/改集群）→ `online_op`。

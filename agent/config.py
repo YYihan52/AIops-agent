@@ -52,6 +52,7 @@ MODEL = os.getenv("AIOPS_MODEL", "opus")
 # --- 可观测性地址（故障诊断处置 Agent 用 curl 只读查询）---
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 JAEGER_URL = os.getenv("JAEGER_URL", "http://localhost:16686")
+FLAGD_OFREP_URL = os.getenv("FLAGD_OFREP_URL", "http://localhost:8016")
 
 # --- 飞书 ---
 FEISHU_WEBHOOK_URL = os.getenv("FEISHU_WEBHOOK_URL", "")

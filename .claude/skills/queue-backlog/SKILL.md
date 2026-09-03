@@ -11,20 +11,20 @@ description: 队列积压 / 消费延迟排查手册。当 Kafka 等队列消费
 
 1. **消费 lag**（Prometheus）：
    ```
-   curl -s 'http://localhost:9090/api/v1/query?query=kafka_consumergroup_lag'
+   curl -s --data-urlencode 'query=kafka_consumer_records_lag{service_name="<consumer-svc>"}' 'http://localhost:9090/api/v1/query'
    ```
-   或 broker/topic 堆积指标。
-
-2. **生产 vs 消费速率对比**：
+   这是消费者侧按 `topic`/`partition` 分开的 lag；也可以查 broker 侧总览：
    ```
-   curl -s 'http://localhost:9090/api/v1/query?query=rate(kafka_topic_partition_current_offset[5m])'
-   curl -s 'http://localhost:9090/api/v1/query?query=rate(kafka_consumergroup_current_offset[5m])'
+   curl -s 'http://localhost:9090/api/v1/query?query=kafka_lag_max'
    ```
-   生产速率持续大于消费速率 → 积压会单调增长。
 
-3. **消费者副本数 / 健康**：（k8s）`kubectl get pod -l app=<consumer-svc>`；（docker）`docker compose ps` 看消费者实例数与状态。
+2. **lag 趋势**：把上面两条换成 `query_range` 看 lag 是单调增长还是稳定。
 
-4. **消费者日志**：（k8s）`kubectl logs -l app=<consumer-svc> --tail 200`；（docker）`docker compose logs <consumer-svc> --tail 200` 看是否报错/卡住。
+3. **消费者副本数 / 健康**：（k8s）`kubectl get pod -l app=<consumer-svc>`；（docker）`docker ps --filter name=<consumer-svc>` 看消费者实例数与状态。
+
+4. **消费者日志**：（k8s）`kubectl logs -l app=<consumer-svc> --tail 200`；（docker）`docker logs <consumer-svc> --tail 200` 看是否报错/卡住。
+
+**不要** `docker exec` 进 kafka/队列容器跑 `kafka-topics.sh`/`kafka-consumer-groups.sh` 之类命令去查 topic/lag——`docker exec` 一律被 hook 拦截，跑了也是白跑一步；lag 用上面第 1 条的 Prometheus 指标就够，topic 名从告警本身的 `labels`/`topic` 字段拿。
 
 ## 判定
 
