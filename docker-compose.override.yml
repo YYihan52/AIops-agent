@@ -1,0 +1,19 @@
+# Auto-loaded by `docker compose`/`docker-compose` alongside docker-compose.yml.
+#
+# The upstream OTel demo compose (vendor/otel-demo/docker-compose.yml, pulled in via
+# `include:`) only declares bare container ports for flagd/jaeger (e.g. `ports: ["8016"]`),
+# so every `up`/`--force-recreate` reassigns a random host port. agent/config.py hardcodes
+# FLAGD_OFREP_URL (localhost:8016) and JAEGER_URL (localhost:16686), so these must stay fixed.
+#
+# A same-named `services:` block inside docker-compose.yml itself does NOT win this merge
+# (the included file's ports take precedence over the including file's), so the pin has to
+# live in this separate override file instead, which the CLI merges in last.
+services:
+  flagd:
+    ports: !override
+      - "8013:8013"
+      - "8016:8016"
+
+  jaeger:
+    ports: !override
+      - "16686:16686"
