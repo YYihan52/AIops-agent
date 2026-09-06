@@ -23,7 +23,18 @@ import dedupe
 
 _seen_product_ids: deque[str] = deque(maxlen=128)  # bounded: recent ids only
 
-CATALOG = [f"PRODUCT-{i}" for i in range(20)]
+# Demo catalog is intentionally tiny (4 SKUs, not 20). With a 20-SKU catalog the
+# duplicate that `dedupe.py::dedupe_ids()` fails to remove lands past index 5
+# (17 catalog candidates + `_TRENDING` appended after), so `get_recommendations()`'s
+# hardcoded `max_results=5` truncates the response before the duplicate is ever
+# visible — real bug, but not observable through the default HTTP path (this is
+# exactly why `recommendation-dedupe` was previously benched, see
+# `data/cold_start/known_unsupported_seeds.json`). Shrinking the catalog to 4 SKUs
+# doesn't touch `dedupe.py` (the actual bug) at all — it only changes how many
+# catalog candidates precede `_TRENDING` in the combined list, so the very same
+# stored-vs-looked-up key mismatch now produces a duplicate ("PRODUCT-3" twice)
+# within the first 5 results, deterministically, on every request.
+CATALOG = [f"PRODUCT-{i}" for i in range(4)]
 
 # merchandising-curated trending ids, may overlap with the catalog match set
 _TRENDING = ["PRODUCT-0", "PRODUCT-3", "PRODUCT-7"]
