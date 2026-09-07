@@ -194,8 +194,9 @@ def write_report(out: dict, out_path: Path) -> None:
 def _resolve_paths(reports_dir: Path, explicit_input: str | None) -> tuple[list[Path], Path]:
     """决定要聚合哪些 jsonl，返回 (paths, 用于落盘 metrics.json 的目录)。
 
-    优先级：显式 --input > reports_dir 下直接的 multi_run_*.jsonl（老式扁平布局，
-    比如已经提交的 Opus 基线）> reports_dir 下最新的 run_* 子目录（新式一次一个目录布局）。
+    优先级：显式 --input > reports_dir 下直接的 multi_run_*.jsonl（老式扁平布局）>
+    reports_dir 下最新的 run_* 子目录（老式「一次一个目录」布局，不分模型/日期）>
+    reports_dir 下 <模型>_<日期>/run_* 里最新的一个（现在 eval.multi_run 默认写的布局）。
     """
     if explicit_input:
         p = Path(explicit_input)
@@ -205,7 +206,7 @@ def _resolve_paths(reports_dir: Path, explicit_input: str | None) -> tuple[list[
     if flat:
         return flat, reports_dir
 
-    run_dirs = sorted(reports_dir.glob("run_*"))
+    run_dirs = sorted(reports_dir.glob("run_*")) or sorted(reports_dir.glob("*/run_*"))
     if run_dirs:
         latest = run_dirs[-1]
         return sorted(latest.glob("multi_run_*.jsonl")), latest

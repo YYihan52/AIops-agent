@@ -13,9 +13,11 @@
 - **`depends_on` 场景（当前只有 s5_dup）**：需要**在同一进程内先跑一次依赖场景（s2）留下指纹，
   再紧跟着跑本场景**，这样才能触发去重路由。这里的顺序保证靠代码本身，不依赖外部脚本。
 
-**每次运行的产出都落在独立的 `<reports-dir>/run_<ts>/` 子目录**（jsonl + 自动生成的
-metrics.json 都在里面），不同批次的测评不会互相混进同一份 `multi_run_*.jsonl`，
-也不会互相覆盖 `metrics.json`——想看某一次的效果指标，直接去对应的 `run_<ts>/` 目录里看。
+**产出按「评测对象」分两层落盘**：`<reports-dir>/<模型名>_<日期>/run_<ts>/`。
+外层 `<模型名>_<日期>/` 对应「这次是用哪个模型、哪天测的」（比如换成 Claude 5 Opus
+测一遍，就会另开一个 `opus_20260907/`，跟别的模型/别的日期互不干扰）；内层每个
+`run_<ts>/` 是当次调用产出的 jsonl + 专属 metrics.json；外层目录下还会自动维护一份
+合并了该模型当天所有 run 的 `metrics.json`，作为这个模型这一天的完整基线大盘。
 
 用法：
     python3 -m eval.multi_run                       # 全场景，默认 3 轮 / 场景
@@ -28,10 +30,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from agent import config
 from agent.integrations import ingest
 from agent.integrations.ingest import load_alert
 from agent.run import run
@@ -39,6 +43,11 @@ from eval import metrics
 from eval.aggregate import build_report, write_report
 
 EXPECTED_PATH = Path(__file__).parent / "expected.json"
+
+
+def _model_slug() -> str:
+    """把 config.MODEL 转成能安全当目录名的字符串（斜杠/点号等换成短横线）。"""
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", config.MODEL)
 
 
 def _reset_dedup_cache() -> None:
@@ -95,9 +104,12 @@ async def _main(args: argparse.Namespace) -> None:
     names = args.only or list(expected.keys())
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-    # 每次运行独立开一个子目录，避免这次的 jsonl 跟别的批次混在一起被 aggregate 一起汇总，
-    # 也避免这次生成的 metrics.json 覆盖掉别的批次已经落盘的 metrics.json。
-    run_dir = Path(args.reports_dir) / f"run_{ts}"
+    date_str = ts[:8]
+    # 外层按「模型_日期」分目录，内层每次调用独立开一个 run_<ts>/ 子目录：
+    # 这次的 jsonl 不会跟别的批次混在一起被 aggregate 一起汇总，
+    # 这次生成的 metrics.json 也不会覆盖掉别的批次已经落盘的 metrics.json。
+    model_dir = Path(args.reports_dir) / f"{_model_slug()}_{date_str}"
+    run_dir = model_dir / f"run_{ts}"
     run_dir.mkdir(parents=True, exist_ok=True)
     out_path = run_dir / f"multi_run_{ts}.jsonl"
 
@@ -120,9 +132,15 @@ async def _main(args: argparse.Namespace) -> None:
     print(f"\n[multi_run] wrote {total_rows} rows to {out_path} in {elapsed:.1f}s")
 
     if total_rows:
-        metrics_path = run_dir / "metrics.json"
-        write_report(build_report([out_path]), metrics_path)
-        print(f"[multi_run] wrote metrics to {metrics_path}")
+        run_metrics_path = run_dir / "metrics.json"
+        write_report(build_report([out_path]), run_metrics_path)
+        print(f"[multi_run] wrote metrics to {run_metrics_path}")
+
+        # 同时刷新「这个模型这一天」的合并大盘：汇总该 model_dir 下所有 run_*/ 的 jsonl。
+        model_jsonl = sorted(model_dir.glob("run_*/multi_run_*.jsonl"))
+        model_metrics_path = model_dir / "metrics.json"
+        write_report(build_report(model_jsonl), model_metrics_path)
+        print(f"[multi_run] wrote combined metrics to {model_metrics_path}")
 
 
 def main() -> None:

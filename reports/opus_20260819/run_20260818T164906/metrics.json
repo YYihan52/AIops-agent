@@ -1,20 +1,20 @@
 {
-  "generated_at": "2026-09-07T13:19:41+00:00",
-  "commit": "356e8e100421fb7c478c560c88d071c2dd6df499",
+  "generated_at": "2026-09-07T13:39:23+00:00",
+  "commit": "f5c6b84dc7ce389997808dfddc1d4fa1a4ff7ee0",
   "sources": [
-    "reports/run_20260819T033230/multi_run_20260819T033230.jsonl"
+    "reports/opus_20260819/run_20260818T164906/multi_run_20260818T164906.jsonl"
   ],
   "rows": 3,
   "scenarios_total": 1,
   "runs_per_scenario_avg": 3.0,
   "effectiveness": {
     "service_accuracy": 0.6667,
-    "kind_accuracy": 0.6667,
-    "route_accuracy": 0.6667,
+    "kind_accuracy": 0.3333,
+    "route_accuracy": 0.0,
     "fix_success_rate": null,
     "code_location_accuracy": null,
-    "mttr_seconds_p50": 298.188,
-    "mttr_minutes_p50": 4.97,
+    "mttr_seconds_p50": 180.465,
+    "mttr_minutes_p50": 3.008,
     "pr_submission_rate": null
   },
   "denominators": {
@@ -27,7 +27,7 @@
     "pr_submission_rate": 0
   },
   "per_scenario_runs": {
-    "s1": 3
+    "s3": 3
   },
   "baseline_reference": {
     "human_mttr_minutes_low": 30,
