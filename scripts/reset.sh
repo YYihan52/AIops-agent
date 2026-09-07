@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reset all injected scenarios back to baseline:
 #   - flip every demo flagd flag back to "off"
-#   - point recommendation back at the clean image (manual note)
+#   - remove the s4 leaking recommendation container and restore the compose-managed one
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -34,8 +34,23 @@ if [ "$BACKEND" = "k8s" ]; then
 else
   CNAME="${RECO_CONTAINER:-recommendation}"
   if docker ps -a --format '{{.Names}}' | grep -qx "$CNAME"; then
-    echo "[reset] s4: removing leaking container '$CNAME'…"
-    docker rm -f "$CNAME" >/dev/null 2>&1 || true
+    if [ -n "$(docker inspect "$CNAME" --format '{{ index .Config.Labels "com.docker.compose.service" }}' 2>/dev/null)" ]; then
+      # Compose-managed service (e.g. still running after an s1-s3-only round). inject.sh s4
+      # creates its leak container via plain `docker run`, which carries no compose labels —
+      # so a labeled container here is NOT the leak and must not be destroyed.
+      echo "[reset] s4: '$CNAME' is the compose-managed service, not an injected leak container — leaving it running."
+    else
+      echo "[reset] s4: removing leaking container '$CNAME'…"
+      docker rm -f "$CNAME" >/dev/null 2>&1 || true
+      # inject.sh s4 removed the compose service to free the name — bring the clean one back,
+      # otherwise every later scenario runs with recommendation down (unrelated frontend errors).
+      if (cd "$ROOT" && docker compose up -d recommendation >/dev/null 2>&1) || \
+         (cd "$ROOT" && docker-compose up -d recommendation >/dev/null 2>&1); then
+        echo "[reset] s4: compose service 'recommendation' restored to the clean image."
+      else
+        echo "[reset] s4: restore 'recommendation' manually: (cd $ROOT && docker-compose up -d recommendation)"
+      fi
+    fi
   fi
 fi
 CLEAN_SHA=$(grep 'baseline' "$ROOT/deploys.log" 2>/dev/null | sed -n 's/.*sha=\([^ ]*\).*/\1/p' | head -1 || true)
