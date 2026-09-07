@@ -8,9 +8,16 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # --- 路径 ---
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKSPACE_DIR = REPO_ROOT / "workspace"  # 代码修复 Agent clone 代码仓的工作目录
+
+# 自动加载 .env——不再依赖「跑之前手动 set -a && source .env && set +a」。
+# override=False（默认）：已经在 shell 里 export 过的变量不会被 .env 顶掉，
+# 所以临时 export 一次性覆盖仍然好用；但正常情况下 .env 是唯一需要维护的地方。
+load_dotenv(REPO_ROOT / ".env")
 
 # --- 路由阈值 ---
 # 置信度低于此值，诊断降级为人工处理（发飞书卡片）
@@ -40,14 +47,25 @@ DEDUP_TTL_SECONDS = int(os.getenv("DEDUP_TTL_SECONDS", str(30 * 60)))
 
 # --- 成本控制 ---
 # 每趟 query 的最大轮数 / 超时（秒），防止 Agent 无限循环烧钱
-DIAGNOSE_MAX_TURNS = int(os.getenv("DIAGNOSE_MAX_TURNS", "25"))
-DIAGNOSE_TIMEOUT_S = int(os.getenv("DIAGNOSE_TIMEOUT_S", "300"))
-FIX_MAX_TURNS = int(os.getenv("FIX_MAX_TURNS", "25"))
-FIX_TIMEOUT_S = int(os.getenv("FIX_TIMEOUT_S", "600"))
+DIAGNOSE_MAX_TURNS = int(os.getenv("DIAGNOSE_MAX_TURNS", "50"))
+DIAGNOSE_TIMEOUT_S = int(os.getenv("DIAGNOSE_TIMEOUT_S", "600"))
+FIX_MAX_TURNS = int(os.getenv("FIX_MAX_TURNS", "50"))
+FIX_TIMEOUT_S = int(os.getenv("FIX_TIMEOUT_S", "900"))
 SCHEMA_RETRY_MAX = int(os.getenv("SCHEMA_RETRY_MAX", "2"))  # 结构化输出校验失败的最大重试次数
 
-# --- 模型 ---
+# --- 模型 / LLM 后端 endpoint ---
 MODEL = os.getenv("AIOPS_MODEL", "opus")
+
+# 这几个变量故意不用官方的 ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN
+# 做 os.getenv 的 key：本机 shell（~/.zshrc）和公司内网工具（codewiz-cc 包装器）早就把这些
+# 官方变量名 export 成了真实的公司 LLM 代理地址 + 真实 token，只要它们已经 export 到进程环境，
+# os.getenv("ANTHROPIC_BASE_URL", 本地默认值) 就只会读到那个「环境污染」值，永远走不到默认值分支
+# （os.getenv 的 default 只在变量完全不存在时生效）。用不冲突的 AIOPS_LLM_* 名字，
+# 默认值直接指向本地/远程 vLLM；agent/core/sdk_runner.py 会把它们显式塞进
+# ClaudeAgentOptions.env，无条件覆盖 claude CLI 子进程看到的 ANTHROPIC_* 环境变量。
+LLM_BASE_URL = os.getenv("AIOPS_LLM_BASE_URL", "http://localhost:8000")
+LLM_API_KEY = os.getenv("AIOPS_LLM_API_KEY", "placeholder-key")
+LLM_AUTH_TOKEN = os.getenv("AIOPS_LLM_AUTH_TOKEN", "placeholder-token")
 
 # --- 可观测性地址（故障诊断处置 Agent 用 curl 只读查询）---
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://localhost:9090")

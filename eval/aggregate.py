@@ -71,6 +71,15 @@ def _safe_div(numer: float, denom: float) -> float | None:
     return round(numer / denom, 4)
 
 
+def _relative_source(p: Path) -> str:
+    """记录到 metrics.json 的路径不带本机绝对目录（会暴露文件系统用户名）。"""
+    resolved = p.resolve()
+    try:
+        return str(resolved.relative_to(REPO_ROOT))
+    except ValueError:
+        return resolved.name
+
+
 def _p50(values: list[float]) -> float | None:
     if not values:
         return None
@@ -175,7 +184,7 @@ def _main(args: argparse.Namespace) -> None:
     out = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "commit": _git_head(),
-        "sources": [str(p) for p in paths],
+        "sources": [_relative_source(p) for p in paths],
         **agg,
         "baseline_reference": {
             "human_mttr_minutes_low": 30,

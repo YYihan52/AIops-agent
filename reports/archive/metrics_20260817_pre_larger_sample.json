@@ -1,0 +1,47 @@
+{
+  "generated_at": "2026-08-17T16:25:52+00:00",
+  "commit": "73f462b8af1b3916b731408ed964118b481630db",
+  "sources": [
+    "reports/multi_run_20260817T153651.jsonl"
+  ],
+  "rows": 20,
+  "scenarios_total": 10,
+  "runs_per_scenario_avg": 2.0,
+  "effectiveness": {
+    "service_accuracy": 0.9,
+    "kind_accuracy": 0.9,
+    "route_accuracy": 0.55,
+    "fix_success_rate": 1.0,
+    "code_location_accuracy": 0.5,
+    "mttr_seconds_p50": 113.815,
+    "mttr_minutes_p50": 1.897,
+    "pr_submission_rate": 1.0
+  },
+  "denominators": {
+    "service_accuracy": 20,
+    "kind_accuracy": 20,
+    "route_accuracy": 20,
+    "fix_success_rate": 2,
+    "code_location_accuracy": 2,
+    "mttr_p50": 19,
+    "pr_submission_rate": 2
+  },
+  "per_scenario_runs": {
+    "s1": 3,
+    "s2": 3,
+    "s3": 3,
+    "s4": 1,
+    "s_lowconf": 3,
+    "s5_dup": 1,
+    "s6_info": 3,
+    "s7_hybrid": 1,
+    "s8_fix_fail": 1,
+    "s9_adv": 1
+  },
+  "baseline_reference": {
+    "human_mttr_minutes_low": 30,
+    "human_mttr_minutes_high": 60,
+    "source": "Google SRE Book / DORA Report 行业中位数",
+    "note": "引用行业公开均值做对照，非本项目内做过的人工对照实验。"
+  }
+}

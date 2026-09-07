@@ -39,6 +39,43 @@ def _accumulate_usage(dst: dict[str, int], usage: Optional[dict]) -> None:
             dst[k] = dst.get(k, 0) + int(v)
 
 
+def _llm_env_overrides() -> dict[str, str]:
+    """构造要塞进 claude CLI 子进程的环境变量，无条件把请求钉死在 config.LLM_* 指定的后端上。
+
+    为什么必须走这条路径，而不是指望 `.claude/settings.json` 里的 env 块：
+    claude_agent_sdk 的 subprocess_cli.py::connect() 里，子进程环境是这样合并的
+    （`inherited_env` 是当前进程继承的环境，包含 ~/.zshrc / codewiz-cc 包装器早就
+    export 好的真实 ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY）：
+
+        process_env = {**inherited_env, ..., **self._options.env, ...}
+
+    `self._options.env`（也就是 `ClaudeAgentOptions(env=...)`）是最后合并的一层，
+    无条件覆盖 inherited_env——不管 ambient shell 里 export 了什么。
+    而 `.claude/settings.json` 的 env 块是否会被子进程读到，取决于 `setting_sources`
+    有没有包含 `"project"`；本文件里 `setting_sources` 只有在调用方传了 `skills=`
+    时才会变成 `["project"]`（诊断 Agent 传了 `skills="all"`），否则是 `[]`
+    （代码修复 Agent 没传 skills）——`setting_sources=[]` 时 `.claude/settings.json`
+    整个不会被加载，其 env 块形同虚设，那次调用就会退回 inherited_env 里的真实公司代理。
+    这正是「同一趟 run 里，诊断 Agent 的调用正确路由到本地 vLLM，
+    但代码修复 Agent 那次调用漏到真实代理、烧了真实 token」的根因。
+    所以这里对**每一次** run_sdk() 调用都无条件塞 env，不依赖 skills/setting_sources。
+    """
+    return {
+        "ANTHROPIC_BASE_URL": config.LLM_BASE_URL,
+        "ANTHROPIC_API_KEY": config.LLM_API_KEY,
+        "ANTHROPIC_AUTH_TOKEN": config.LLM_AUTH_TOKEN,
+        "ANTHROPIC_MODEL": config.MODEL,
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": config.MODEL,
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": config.MODEL,
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": config.MODEL,
+        "ANTHROPIC_SMALL_FAST_MODEL": config.MODEL,
+        # 公司代理专用的 SSO Cookie header，清空以免被子进程原样继承发给本地 vLLM。
+        "ANTHROPIC_CUSTOM_HEADERS": "",
+        # 顺手关掉非必要的后台/遥测请求，减少「还有什么漏到别处」的面。
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    }
+
+
 async def run_sdk(
     prompt: str,
     *,
@@ -77,6 +114,8 @@ async def run_sdk(
         hooks={"PreToolUse": [HookMatcher(matcher="Bash", hooks=[hook])]},
         setting_sources=setting_sources,
         max_turns=max_turns,
+        # 无条件覆盖子进程环境，不依赖 setting_sources/skills——见 _llm_env_overrides() 的注释。
+        env=_llm_env_overrides(),
     )
     if json_schema is not None:
         options_kwargs["output_format"] = {"type": "json_schema", "schema": json_schema}
