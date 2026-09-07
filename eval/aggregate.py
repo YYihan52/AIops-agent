@@ -17,10 +17,14 @@
   `expect_changed_files_any_of` 的场景），其它场景没有 gold set，不参与分母。
 - 指标 6 用 p50 中位数而不是 mean，避免 s4/s7 之类真代码修复场景的重尾把平均数拉爆。
 
+**每次 `multi_run` 都会落在独立的 `reports/run_<ts>/` 子目录**（见 `eval/multi_run.py`），
+且 `multi_run` 结束时会自动调用本模块生成同目录下的 `metrics.json`——正常情况下不需要手动
+跑这个模块。只有想合并多个历史 run（比如凑更大样本）或重新生成某一次的 metrics.json 时才手动用：
+
 用法：
-    python3 -m eval.aggregate                                # 汇总 reports/multi_run_*.jsonl
-    python3 -m eval.aggregate --input reports/multi_run_20260817T090000.jsonl
-    python3 -m eval.aggregate --output reports/metrics.json  # 自定义输出路径
+    python3 -m eval.aggregate --reports-dir reports/run_20260907T075114  # 重新生成某一次 run 的 metrics.json
+    python3 -m eval.aggregate --input reports/run_xxx/multi_run_xxx.jsonl
+    python3 -m eval.aggregate --output reports/metrics.json              # 自定义输出路径
 """
 from __future__ import annotations
 
@@ -161,27 +165,11 @@ def _aggregate(rows: list[dict]) -> dict:
     }
 
 
-def _main(args: argparse.Namespace) -> None:
-    reports_dir = Path(args.reports_dir)
-    if args.input:
-        paths = [Path(args.input)]
-    else:
-        paths = sorted(reports_dir.glob("multi_run_*.jsonl"))
-
-    if not paths:
-        raise SystemExit(
-            f"[aggregate] no multi_run_*.jsonl found in {reports_dir}; "
-            "run `python3 -m eval.multi_run` first."
-        )
-
-    print(f"[aggregate] loading {len(paths)} file(s):")
-    for p in paths:
-        print(f"  - {p}")
-
+def build_report(paths: list[Path]) -> dict:
+    """把一组 `multi_run_*.jsonl` 压成一份 metrics 报告 dict（不落盘，供 CLI 和 multi_run.py 复用）。"""
     rows = _load_rows(paths)
     agg = _aggregate(rows)
-
-    out = {
+    return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "commit": _git_head(),
         "sources": [_relative_source(p) for p in paths],
@@ -194,15 +182,58 @@ def _main(args: argparse.Namespace) -> None:
         },
     }
 
-    out_path = Path(args.output) if args.output else reports_dir / "metrics.json"
+
+def write_report(out: dict, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
         json.dumps(out, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def _resolve_paths(reports_dir: Path, explicit_input: str | None) -> tuple[list[Path], Path]:
+    """决定要聚合哪些 jsonl，返回 (paths, 用于落盘 metrics.json 的目录)。
+
+    优先级：显式 --input > reports_dir 下直接的 multi_run_*.jsonl（老式扁平布局，
+    比如已经提交的 Opus 基线）> reports_dir 下最新的 run_* 子目录（新式一次一个目录布局）。
+    """
+    if explicit_input:
+        p = Path(explicit_input)
+        return [p], p.parent
+
+    flat = sorted(reports_dir.glob("multi_run_*.jsonl"))
+    if flat:
+        return flat, reports_dir
+
+    run_dirs = sorted(reports_dir.glob("run_*"))
+    if run_dirs:
+        latest = run_dirs[-1]
+        return sorted(latest.glob("multi_run_*.jsonl")), latest
+
+    return [], reports_dir
+
+
+def _main(args: argparse.Namespace) -> None:
+    reports_dir = Path(args.reports_dir)
+    paths, default_out_dir = _resolve_paths(reports_dir, args.input)
+
+    if not paths:
+        raise SystemExit(
+            f"[aggregate] no multi_run_*.jsonl found under {reports_dir} "
+            "(直接的文件或 run_* 子目录都没有); run `python3 -m eval.multi_run` first."
+        )
+
+    print(f"[aggregate] loading {len(paths)} file(s):")
+    for p in paths:
+        print(f"  - {p}")
+
+    out = build_report(paths)
+
+    out_path = Path(args.output) if args.output else default_out_dir / "metrics.json"
+    write_report(out, out_path)
     print(f"\n[aggregate] wrote {out_path}")
 
-    eff = agg["effectiveness"]
+    eff = out["effectiveness"]
     print("[aggregate] effectiveness summary:")
     for k, v in eff.items():
         print(f"  {k:28s} = {v}")

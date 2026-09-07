@@ -13,6 +13,10 @@
 - **`depends_on` 场景（当前只有 s5_dup）**：需要**在同一进程内先跑一次依赖场景（s2）留下指纹，
   再紧跟着跑本场景**，这样才能触发去重路由。这里的顺序保证靠代码本身，不依赖外部脚本。
 
+**每次运行的产出都落在独立的 `<reports-dir>/run_<ts>/` 子目录**（jsonl + 自动生成的
+metrics.json 都在里面），不同批次的测评不会互相混进同一份 `multi_run_*.jsonl`，
+也不会互相覆盖 `metrics.json`——想看某一次的效果指标，直接去对应的 `run_<ts>/` 目录里看。
+
 用法：
     python3 -m eval.multi_run                       # 全场景，默认 3 轮 / 场景
     python3 -m eval.multi_run --runs 5              # 全场景，默认 5 轮 / 场景
@@ -32,6 +36,7 @@ from agent.integrations import ingest
 from agent.integrations.ingest import load_alert
 from agent.run import run
 from eval import metrics
+from eval.aggregate import build_report, write_report
 
 EXPECTED_PATH = Path(__file__).parent / "expected.json"
 
@@ -89,10 +94,12 @@ async def _main(args: argparse.Namespace) -> None:
     expected = json.loads(EXPECTED_PATH.read_text(encoding="utf-8"))
     names = args.only or list(expected.keys())
 
-    reports_dir = Path(args.reports_dir)
-    reports_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-    out_path = reports_dir / f"multi_run_{ts}.jsonl"
+    # 每次运行独立开一个子目录，避免这次的 jsonl 跟别的批次混在一起被 aggregate 一起汇总，
+    # 也避免这次生成的 metrics.json 覆盖掉别的批次已经落盘的 metrics.json。
+    run_dir = Path(args.reports_dir) / f"run_{ts}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    out_path = run_dir / f"multi_run_{ts}.jsonl"
 
     t_start = time.perf_counter()
     total_rows = 0
@@ -111,6 +118,11 @@ async def _main(args: argparse.Namespace) -> None:
 
     elapsed = time.perf_counter() - t_start
     print(f"\n[multi_run] wrote {total_rows} rows to {out_path} in {elapsed:.1f}s")
+
+    if total_rows:
+        metrics_path = run_dir / "metrics.json"
+        write_report(build_report([out_path]), metrics_path)
+        print(f"[multi_run] wrote metrics to {metrics_path}")
 
 
 def main() -> None:

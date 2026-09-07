@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-17T16:25:52+00:00",
-  "commit": "73f462b8af1b3916b731408ed964118b481630db",
+  "generated_at": "2026-09-07T13:19:41+00:00",
+  "commit": "356e8e100421fb7c478c560c88d071c2dd6df499",
   "sources": [
-    "reports/multi_run_20260817T153651.jsonl"
+    "reports/archive/run_20260817T153651/multi_run_20260817T153651.jsonl"
   ],
   "rows": 20,
   "scenarios_total": 10,
