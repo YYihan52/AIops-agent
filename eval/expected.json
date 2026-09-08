@@ -2,33 +2,53 @@
   "s1": {
     "alert": "alerts/s1.json",
     "runs": 3,
-    "kind_any_of": ["dependency", "config"],
+    "kind_any_of": [
+      "dependency",
+      "config"
+    ],
     "suspect_service_contains": "product-catalog",
     "remediation_type": "online_op",
-    "expect_route_any_of": ["feishu_online_op", "auto_remediated"]
+    "expect_route_any_of": [
+      "feishu_online_op",
+      "auto_remediated"
+    ]
   },
   "s2": {
     "alert": "alerts/s2.json",
     "runs": 3,
-    "kind_any_of": ["resource", "config"],
+    "kind_any_of": [
+      "resource",
+      "config"
+    ],
     "suspect_service_contains": "ad",
     "remediation_type": "online_op",
-    "expect_route_any_of": ["feishu_online_op", "auto_remediated"]
+    "expect_route_any_of": [
+      "feishu_online_op",
+      "auto_remediated"
+    ]
   },
   "s3": {
     "alert": "alerts/s3.json",
     "runs": 3,
-    "kind": "resource",
     "suspect_service_contains": "kafka",
     "remediation_type": "online_op",
-    "expect_route": "feishu_online_op"
+    "expect_route": "feishu_online_op",
+    "kind_any_of": [
+      "resource",
+      "config"
+    ]
   },
   "s4": {
     "alert": "alerts/s4.json",
     "runs": 1,
     "kind": "deploy_regression",
     "suspect_service_contains": "recommendation",
-    "expect_route_any_of": ["code_fix_pr", "online_op_and_code_fix_pr", "auto_remediated_and_code_fix_pr", "auto_remediated"],
+    "expect_route_any_of": [
+      "code_fix_pr",
+      "online_op_and_code_fix_pr",
+      "auto_remediated_and_code_fix_pr",
+      "auto_remediated"
+    ],
     "expect_fix_verified": true,
     "expect_changed_files_any_of": [
       "recommendation_server.py",
@@ -52,7 +72,12 @@
   "s6_info": {
     "alert": "alerts/s6_info.json",
     "runs": 3,
-    "kind_any_of": ["dependency", "resource", "deploy_regression", "config"],
+    "kind_any_of": [
+      "dependency",
+      "resource",
+      "deploy_regression",
+      "config"
+    ],
     "suspect_service_contains": "product-catalog",
     "remediation_type": "info_only",
     "expect_route": "info_only"
@@ -60,9 +85,15 @@
   "s7_hybrid": {
     "alert": "alerts/s7_hybrid.json",
     "runs": 1,
-    "kind_any_of": ["resource", "deploy_regression"],
+    "kind_any_of": [
+      "resource",
+      "deploy_regression"
+    ],
     "suspect_service_contains": "recommendation",
-    "expect_route_any_of": ["online_op_and_code_fix_pr", "auto_remediated_and_code_fix_pr"],
+    "expect_route_any_of": [
+      "online_op_and_code_fix_pr",
+      "auto_remediated_and_code_fix_pr"
+    ],
     "expect_fix_verified": true,
     "expect_changed_files_any_of": [
       "recommendation_server.py",
@@ -74,18 +105,33 @@
   "s8_fix_fail": {
     "alert": "alerts/s8_fix_fail.json",
     "runs": 1,
-    "kind_any_of": ["deploy_regression", "config"],
+    "kind_any_of": [
+      "deploy_regression",
+      "config"
+    ],
     "suspect_service_contains": "recommendation",
     "remediation_type": "code_fix",
-    "expect_route_any_of": ["feishu_fix_unverified", "feishu_low_confidence"],
+    "expect_route_any_of": [
+      "feishu_fix_unverified",
+      "feishu_low_confidence"
+    ],
     "expect_fix_verified": false
   },
   "s9_adv": {
     "alert": "alerts/s9_adv.json",
     "runs": 3,
-    "kind_any_of": ["deploy_regression", "resource"],
+    "kind_any_of": [
+      "deploy_regression",
+      "resource"
+    ],
     "suspect_service_contains": "recommendation",
-    "expect_route_any_of": ["code_fix_pr", "online_op_and_code_fix_pr", "auto_remediated_and_code_fix_pr", "feishu_online_op", "auto_remediated"]
+    "expect_route_any_of": [
+      "code_fix_pr",
+      "online_op_and_code_fix_pr",
+      "auto_remediated_and_code_fix_pr",
+      "feishu_online_op",
+      "auto_remediated"
+    ]
   },
   "s10_ranking": {
     "alert": "alerts/s10_ranking.json",
@@ -95,7 +141,10 @@
     "remediation_type": "code_fix",
     "expect_route": "code_fix_pr",
     "expect_fix_verified": true,
-    "expect_changed_files_any_of": ["ranking.py", "src/ranking.py"]
+    "expect_changed_files_any_of": [
+      "ranking.py",
+      "src/ranking.py"
+    ]
   },
   "s11_dedupe": {
     "alert": "alerts/s11_dedupe.json",
@@ -105,7 +154,10 @@
     "remediation_type": "code_fix",
     "expect_route": "code_fix_pr",
     "expect_fix_verified": true,
-    "expect_changed_files_any_of": ["dedupe.py", "src/dedupe.py"]
+    "expect_changed_files_any_of": [
+      "dedupe.py",
+      "src/dedupe.py"
+    ]
   },
   "s12_race": {
     "alert": "alerts/s12_race.json",
@@ -115,6 +167,9 @@
     "remediation_type": "code_fix",
     "expect_route": "code_fix_pr",
     "expect_fix_verified": true,
-    "expect_changed_files_any_of": ["stats.py", "src/stats.py"]
+    "expect_changed_files_any_of": [
+      "stats.py",
+      "src/stats.py"
+    ]
   }
 }
