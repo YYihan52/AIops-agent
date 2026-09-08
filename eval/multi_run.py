@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import re
 import time
 from datetime import datetime, timezone
@@ -104,10 +105,10 @@ async def _main(args: argparse.Namespace) -> None:
     names = args.only or list(expected.keys())
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-    date_str = ts[:8]
-    # 外层按「模型_日期」分目录，内层每次调用独立开一个 run_<ts>/ 子目录：
-    # 这次的 jsonl 不会跟别的批次混在一起被 aggregate 一起汇总，
-    # 这次生成的 metrics.json 也不会覆盖掉别的批次已经落盘的 metrics.json。
+    # 外层目录的日期用本地日期而不是 UTC（run_<ts> 文件名时间戳保持 UTC、与历史命名一致）：
+    # UTC 日期会在本地早上 8 点跨零点，把同一次测评拆进两个日期目录（还得手动合并）。
+    # 跨本地午夜的长测评可设 AIOPS_EVAL_TAG（如 20260907）把整个活动固定归到一个目录。
+    date_str = os.getenv("AIOPS_EVAL_TAG") or datetime.now().strftime("%Y%m%d")
     model_dir = Path(args.reports_dir) / f"{_model_slug()}_{date_str}"
     run_dir = model_dir / f"run_{ts}"
     run_dir.mkdir(parents=True, exist_ok=True)

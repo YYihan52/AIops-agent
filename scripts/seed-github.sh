@@ -88,7 +88,7 @@ git add -A && git commit -q -m "perf: track all seen product ids for analytics
 Collect every requested product id so we can compute popularity later."
 BAD_SHA=$(git rev-parse --short HEAD)
 
-echo "[seed] pushing history (clean=$CLEAN_SHA, leak=$BAD_SHA) to $FULL…"
+echo "[seed] pushing history (clean=$CLEAN_SHA, leak=$BAD_SHA) to ${FULL}…"
 # Temporarily lift branch protection so the force-push (reset of history) can land.
 gh api -X DELETE "repos/$FULL/branches/$DEFAULT_BRANCH/protection" >/dev/null 2>&1 || true
 git remote add origin "https://github.com/$FULL.git"
