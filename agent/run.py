@@ -89,6 +89,10 @@ async def _run_inner(alert: dict) -> dict[str, Any]:
 
     # === 按处置类型分流 ===
     if diag.remediation_type == "online_op":
+        # 兜底初始化：note 只在 auto_done=True 分支被赋值，但下方 also_code_fix 且
+        # fix 未通过验证的分支（line ~112）在 auto_done=False 时也会读它——不初始化
+        # 会 UnboundLocalError 直接炸掉整个编排流程（违背「流程永不崩溃」理念）。
+        note = ""
         # 是否已自动执行了低风险止血？看执行台账回填的 executed_actions（代码层的可信记录，
         # 不是模型自述）。有 → Agent 已自动止血；无 → 属高风险/未执行，发飞书卡片交人工。
         auto_done = bool(diag.executed_actions)
