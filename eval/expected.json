@@ -30,7 +30,10 @@
   "s3": {
     "alert": "alerts/s3.json",
     "runs": 3,
-    "suspect_service_contains": "kafka",
+    "suspect_service_contains_any_of": [
+      "kafka",
+      "fraud-detection"
+    ],
     "remediation_type": "online_op",
     "expect_route": "feishu_online_op",
     "kind_any_of": [

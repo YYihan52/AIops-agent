@@ -24,10 +24,13 @@ from typing import Any
 
 
 def _service_ok(exp: dict, diag: dict) -> bool:
+    suspect = (diag.get("suspect_service", "") or "").lower()
+    if "suspect_service_contains_any_of" in exp:
+        return any(n.lower() in suspect for n in exp["suspect_service_contains_any_of"])
     needle = exp.get("suspect_service_contains")
     if not needle:
         return True
-    return needle.lower() in (diag.get("suspect_service", "") or "").lower()
+    return needle.lower() in suspect
 
 
 def _kind_ok(exp: dict, diag: dict) -> bool:
