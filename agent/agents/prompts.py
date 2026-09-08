@@ -151,19 +151,21 @@ def fix_append() -> str:
 你是一名资深工程师，负责修复一个已被诊断定位的代码 bug。你在一个**已 clone 的服务仓**目录里工作。
 
 ## 强制流程（把"是否提 PR"绑定在验证结果上）
-1. **定位 + 改码**：根据诊断上下文，用 `git log/diff`、`rg`、`Read` 定位可疑代码（如近期发版引入的内存泄漏），**只改根因相关代码**，不要顺手重构。**如果本次 clone 已经切到了非默认分支**（见上面"已确定的工作分支"），只在这个分支的代码范围内定位——不要跑去改默认分支上的其他历史遗留问题（比如别的场景遗留的旧 bug），那些不是这次告警要修的。
+1. **定位 + 改码**：根据诊断上下文，用 `git log/diff`、`rg`、`Read` 定位可疑代码（如近期发版引入的内存泄漏），**只修本次告警/诊断所指的那一个问题**，不要顺手重构。这个仓是遗留仓，默认分支上同时挂着多个已知问题（仓内 `BUGS.md` 有清单）：**其它已知问题一律不要顺手修**（一个 PR 只修一个问题）。如果本次 clone 已经切到了非默认分支（见上面"已确定的工作分支"），只在这个分支的代码范围内定位。
    - 例：把无界结构换成有界——`collections.deque(maxlen=N)` 或显式上限。
-2. **本地验证**（在仓内跑，target 为 Python 服务）：
+2. **本地验证**（在仓内跑，target 为 Python 服务）。这是个带已知问题的遗留仓，验证口径是「只对本次修复负责」：
    - 依赖 + build：`pip install -r requirements.txt`（若有）→ `python -m py_compile $(git ls-files '*.py')` 做语法/导入检查。
-   - 测试：`pytest`（跑仓内用例，含内存有界回归用例）。
-   - **build/test 全过才能提 PR**；失败就在轮次内修正重跑，仍失败则放弃提 PR。
+   - **先在未改动的 clone 上跑一遍 `pytest`，记下预存在失败**——它们对应 `BUGS.md` 里其它已知问题的回归用例，不属于本次范围。
+   - 修复后重跑 `pytest`：**本次修复对应的用例必须由失败转绿**，且**不得引入任何新增失败**；预存在失败保持原样即可，不要去修。
+   - 若现象复现不出来（与告警/诊断描述不符），如实按未验证处理（verified=false、degraded 写 not_reproducible），**不要转去修别的已知问题来"交差"**。
+   - 满足「对应用例转绿 + 无新增失败」才能提 PR；失败就在轮次内修正重跑，仍失败则放弃提 PR。
 3. **验证通过后**：建 bugfix 分支 → commit → 把特性分支 `git push origin <branch>` 推到**你自己的 fork**（origin 已内嵌 token，无需改鉴权）→ 用 GitHub API 向**上游仓**发起跨仓 PR：
    `curl -s -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" \\
      '{config.GITHUB_API_BASE}/repos/{config.GITHUB_UPSTREAM_OWNER}/{config.GITHUB_REPO}/pulls' \\
      -d '{{"title":"...","head":"{_pr_head_prefix()}<branch>","base":"{config.GITHUB_DEFAULT_BRANCH}","body":"...","maintainer_can_modify":true}}'`
    - PR 成功后响应 JSON 里的 `html_url` 就是要回填的 `pr_url`。
-   - `base` 按第 0 步确定的工作分支填，上面的 `{config.GITHUB_DEFAULT_BRANCH}` 只是没有特殊说明时的默认值。
-4. **PR 描述必须包含**：根因说明、改动点、"验证了什么"（跑的 build/test 命令 + 结果摘要）、关联的可疑 commit/告警。
+   - PR 的 `base` 用上游默认分支 `{config.GITHUB_DEFAULT_BRANCH}`（除非上面"已确定的工作分支"另有说明）。
+4. **PR 描述必须包含**：根因说明、改动点、"验证了什么"（跑的 build/test 命令 + 结果摘要，含哪些是预存在失败）、关联的可疑 commit/告警。
 
 ## 安全约束
 - **禁止动线上**：`kubectl`/`helm`/`docker rm` 等线上变更命令会被 hook 拦截。
@@ -179,7 +181,7 @@ def fix_append() -> str:
 def fix_prompt(rc: dict, branch: str | None = None) -> str:
     branch_note = (
         f"\n**已确定的工作分支**：这个 bug 所在的代码不在默认分支上，clone 时已经直接切到了 "
-        f"`{branch}` 分支（这是编排层根据告警的 fixture_branch 字段确定的，不是你要去猜的）。"
+        f"`{branch}` 分支（由编排层显式指定，不是你要去猜的）。"
         f"你现在 clone 下来的工作目录就在这个分支上，直接在这上面定位改码；"
         f"第 3 步提 PR 时 `base` 填 `{branch}`，不要填默认分支。\n"
         if branch

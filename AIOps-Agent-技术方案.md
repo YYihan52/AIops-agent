@@ -114,7 +114,7 @@
 - **GitHub（公开上游仓）**：托管服务代码仓、承载 PR，master 开启分支保护（`enforce_admins`，PR-only）。真实开源协作流——使用者 fork 上游到自己账号，Agent 用使用者自己的 token 推特性分支到其 fork，再向上游发起**跨仓 PR**，无需被邀请为协作者，所有 PR 汇聚到同一上游仓。
 - **Milvus standalone**：etcd + minio + milvus 三容器，存历史诊断工单向量。`scripts/start-milvus.sh` 可单独拉起（不起 OTel 全栈）。
 - `scripts/`：
-  - `seed-github.sh`：用 `gh` 建公开 `recommendation` 仓 → 基线 commit（有界）+ 泄漏 commit（无界）+ master 分支保护 + 写 `deploys.log`（镜像 tag↔SHA↔时间）。
+  - `seed-github.sh`：用 `gh` 建公开 `recommendation` 仓 → **多 bug master 历史**（基线 commit + 每个 bug 一个自然 commit：ranking/dedupe/stats/pagination/cache/pricing + 泄漏 commit + BUGS.md 已知问题清单）+ master 分支保护 + 写 `deploys.log`（镜像 tag↔SHA↔时间，每 bug commit 一条发版记录）。历史由 `seed_github_history.py` 从 `scripts/fixtures/recommendation-master/` 模板逐阶段渲染生成，并在每个 commit 上自检（py_compile + pytest：失败用例集合必须恰好等于"已引入的 bug"）。
   - `k8s/start-kind.sh`：起本地 kind 集群 + metrics-server（`kubectl top` 有数据）+ `otel-demo` 命名空间。k8s 后端入口。
   - `k8s/recommendation-leak.yaml`：s4 泄漏版 Deployment（memory limit 128Mi，等价 docker `--memory=128m`）+ Service，label `app=recommendation` 供迁移止血命中白名单。
   - `inject.sh <s1|s2|s3|s4>`：s1–s3 翻 flagd flag；**s4 真实部署**——从泄漏 commit `docker build` 镜像后，按 `AIOPS_BACKEND`：k8s 走 `kind load` + `kubectl apply`（Pod OOMKilled+重建），docker 走 `docker run --memory=128m`。
@@ -257,10 +257,11 @@ async def _run_inner(alert):
 
 **内存泄漏 capstone 是完整端到端真实闭环**——从真容器 OOM 到 代码修复 Agent 提出 PR 全程真实，是整个系统的能力验证基线。
 
-**capstone 设计（自带可运行镜像，真实闭环）**：`recommendation` 是自带的轻量 Python 服务（纯 stdlib `http.server`，`scripts/fixtures/recommendation/`），不依赖 OTel demo 镜像：
-- **真实可运行**：起 `/recommend` `/metrics` `/healthz` + **后台自驱负载线程**——容器一跑内存就自然单调上升，无需外部 load-gen。import 时不跑（`__main__` 才跑），故不影响 pytest。
-- **泄漏在可被 pytest 钉死的纯逻辑**：`get_recommendations` 每次把 id 无界 `append` 到模块级 list，`test_recommendation.py::test_memory_is_bounded` 是提 PR 的 gate（泄漏版失败、有界版通过）。
-- **三方一致**：`seed-github.sh` 把同一 fixture 作 GitHub"泄漏 commit"、sed 生成"基线 commit"（仅差有界 deque↔无界 list 一处 diff），保证 **GitHub 仓码 = 容器码 = 代码修复 Agent 的修复目标**。
+**capstone 设计（自带可运行镜像，真实闭环）**：`recommendation` 是自带的轻量 Python 服务（纯 stdlib `http.server`，`scripts/fixtures/recommendation-master/`），不依赖 OTel demo 镜像：
+- **真实可运行**：起 `/recommend` `/catalog` `/trending` `/price` `/metrics` `/healthz` + **后台自驱负载线程**——容器一跑内存就自然单调上升，无需外部 load-gen。import 时不跑（`__main__` 才跑），故不影响 pytest。
+- **多 bug 共存的遗留仓（Phase B 布局）**：所有造的 bug 直接放 master，每个 bug 一个自然 commit（ranking 排序方向 / dedupe key 大小写 / stats 并发丢计数 / pagination off-by-one / cache TTL 单位 / pricing 舍入方向 / 内存泄漏），互不干扰、每个 bug 各有一条红着的回归用例；仓内 `BUGS.md` 是使用者友好的已知问题清单。使用者 clone master 即见全部 bug 代码，不再藏 feature 分支。
+- **泄漏在可被 pytest 钉死的纯逻辑**：`get_recommendations` 每次把 id 无界 `extend` 到模块级 list，`test_recommendation.py::test_memory_is_bounded` 是提 PR 的 gate（泄漏版失败、有界版通过）。
+- **三方一致**：`seed_github_history.py` 从同一 fixture 模板逐阶段渲染整条历史（泄漏 commit 与前一版仅差有界 deque↔无界 list 一处 diff），保证 **GitHub 仓码 = 容器码 = 代码修复 Agent 的修复目标**。
 
 闭环：故障诊断处置 Agent 用 `kubectl top`/`kubectl describe`（RestartCount/OOMKilled/Last State）——docker 后端为 `docker stats`/`docker inspect`——加服务 `/metrics` **实地观测**内存单调上升 → 镜像 tag + `deploys.log`（k8s 加 `kubectl rollout history`）定位发版 → `git show <sha>` 映射无界 list → 判处置 → 代码修复 Agent clone→改有界结构→build+test→提 PR。
 
@@ -313,6 +314,15 @@ async def _run_inner(alert):
 - 修复有效性（内存泄漏场景）：`verified==true`。
 - 成本：usage / cost / attempts / degraded。
 
+> **口径备注（2026-09 Phase B 起生效）**：上游仓 bug 布局从「泄漏在 master、s10/s11/s12 的 bug 在
+> `feature/*` 分支（告警带 `fixture_branch`，clone 时切分支）」改为「全部 bug 直接在 master 上」
+> （使用者 clone 即见，`BUGS.md` 为清单；s10–s12 告警不再带 `fixture_branch`，clone 默认分支）。因此
+> 代码修复类场景（s4/s7/s8/s10–s12）的执行条件与 Opus 基线（feature 分支拓扑）存在**拓扑差异**：
+> 修复 Agent 现在 clone 的是"多个已知问题并存"的 master，验证口径同步改为「本次修复对应用例转绿 +
+> 不引入新增失败（预存在失败对应其它已知问题，见 `prompts.fix_append`）」。代码修复类指标
+> （`fix_verified` / `changed_files_hit` / `pr_created`）与旧基线**不可直接对比**；诊断类指标
+> （service/kind/route 的诊断侧、置信度路由）不受影响。
+
 ---
 
 ## 13. 快速运行
@@ -323,7 +333,7 @@ python3.11 -m venv .venv && source .venv/bin/activate && pip install -r requirem
 modelscope download BAAI/bge-small-zh-v1.5          # BGE 模型(国内, 一次)
 docker compose up -d                                 # OTel Demo + Prometheus + Jaeger + Milvus
 ./scripts/start-milvus.sh                            # (或单独拉 Milvus 三容器)
-./scripts/seed-github.sh                             # (维护者一次)建公开上游仓 + 基线/泄漏 commit + 分支保护
+./scripts/seed-github.sh                             # (维护者一次)建公开上游仓 + 多 bug master 历史 + 分支保护
 # 使用者：fork 上游仓 → 建 PAT(public_repo) → 在 .env 填 GITHUB_TOKEN/UPSTREAM_OWNER/REPO/FORK_OWNER
 source .env                                          # 导出 GITHUB_* 等
 

@@ -140,7 +140,9 @@ python3 -m agent.run --alert alerts/s2.json --json-out reports/s2.json
 
 **（维护者，一次性）** 建/刷新公开上游仓：
 ```bash
-./scripts/seed-github.sh            # 用 gh 建公开 recommendation 仓 + 基线/泄漏 commit + master 分支保护
+./scripts/seed-github.sh            # 用 gh 建公开 recommendation 仓 + 多 bug 历史（基线 + 每个 bug 一个
+                                    # commit：ranking/dedupe/stats/pagination/cache/pricing + 内存泄漏 +
+                                    # BUGS.md）+ master 分支保护。所有 bug 都在 master 上，使用者 clone 即见
                                     # 默认上游：github.com/HuaiNan54321/recommendation
 ```
 
@@ -181,7 +183,7 @@ python3 -m agent.run --alert alerts/s4.json   # 诊断 Agent 用 kubectl describ
 # 混合根因下会先 kubectl rollout restart 授权工作负载止血、再提根治 PR → route=auto_remediated_and_code_fix_pr
 ```
 
-内存泄漏服务是自带的轻量 Python 服务（`scripts/fixtures/recommendation/`，纯 stdlib，自驱负载使内存真实爬升），不依赖 OTel demo 镜像。`seed-github.sh` 保证 **GitHub 仓码 = 运行的工作负载码 = 代码修复 Agent 的修复目标** 三方一致，构成逻辑自洽的真实闭环。
+内存泄漏服务是自带的轻量 Python 服务（`scripts/fixtures/recommendation-master/`，纯 stdlib，自驱负载使内存真实爬升），不依赖 OTel demo 镜像。`seed-github.sh` 保证 **GitHub 仓码 = 运行的工作负载码 = 代码修复 Agent 的修复目标** 三方一致，构成逻辑自洽的真实闭环。
 
 ### 端到端闭环实测（Colima 全真栈，docker 后端）
 

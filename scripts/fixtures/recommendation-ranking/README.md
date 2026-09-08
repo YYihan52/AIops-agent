@@ -1,5 +1,11 @@
 # recommendation-ranking fixture
 
+> **Historical note (2026-09, Phase B)**: the feature-branch seeding below is
+> retired. The `feature/*` branches were deleted from the upstream repo; this
+> bug (same code, same regression test) now lives directly on **master**, seeded
+> from `scripts/fixtures/recommendation-master/`. This directory remains as a
+> local docker-fixture source (it is still referenced by out-of-repo tooling).
+
 Seeds the `feature/ranking` branch on `github.com/HuaiNan54321/recommendation`,
 branched from the clean pre-leak baseline commit (**not** from `master`,
 which has the s4 planted memory leak — see "Why separate branches" below).

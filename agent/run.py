@@ -105,7 +105,7 @@ async def _run_inner(alert: dict) -> dict[str, Any]:
 
         # 混合根因：光止血还不够，还得改代码根治 → 顺带触发 代码修复 Agent 提 PR
         if diag.also_code_fix:
-            fr = await code_fix(diag.model_dump(by_alias=True), branch=alert.get("fixture_branch"))
+            fr = await code_fix(diag.model_dump(by_alias=True))
             fix2: FixResult = fr["fix"]
             meta["fix_meta"] = fr["meta"]
             if fix2.verified:
@@ -125,7 +125,8 @@ async def _run_inner(alert: dict) -> dict[str, Any]:
 
     if diag.remediation_type == "code_fix":
         # === 第二趟：代码修复 Agent 改码修复 ===
-        fr = await code_fix(diag.model_dump(by_alias=True), branch=alert.get("fixture_branch"))
+        # 所有场景的 bug 都在上游仓的默认分支（master）上，clone 默认分支即可。
+        fr = await code_fix(diag.model_dump(by_alias=True))
         fix: FixResult = fr["fix"]
         meta["fix_meta"] = fr["meta"]
         if not fix.verified:

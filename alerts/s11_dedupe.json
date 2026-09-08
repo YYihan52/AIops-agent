@@ -8,9 +8,8 @@
   },
   "annotations": {
     "summary": "recommendation 接口偶发返回重复的商品 ID",
-    "description": "客户端反馈同一次推荐请求的结果列表里，同一个商品 ID 出现了两次。这是这两周新开发的个性化推荐功能（合并了目录候选 + 运营curated的热门候选两路来源，理论上会有重叠，靠一个去重步骤兜底），还在 `feature/dedupe` 分支上灰度，尚未合并进 master。CPU/内存/延迟均正常，怀疑去重逻辑没生效。"
+    "description": "客户端反馈同一次推荐请求的结果列表里，同一个商品 ID 出现了两次。这是最近合并进 master 上线的个性化推荐功能（合并了目录候选 + 运营 curated 的热门候选两路来源，理论上会有重叠，靠一个去重步骤兜底）。CPU/内存/延迟均正常，怀疑去重逻辑没生效。"
   },
   "startsAt": "2026-08-18T09:05:00Z",
-  "fixture_branch": "feature/dedupe",
-  "scenario_hint": "代码 bug 在 feature/dedupe 分支的 dedupe.py 里（去重的 key 计算和存储不一致）；期望 remediation_type=code_fix，纯代码问题不需要动线上"
+  "scenario_hint": "代码 bug 在 master 的 dedupe.py 里（去重的 key 计算和存储不一致）；期望 remediation_type=code_fix，纯代码问题不需要动线上"
 }

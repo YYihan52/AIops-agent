@@ -30,10 +30,10 @@ def clone_service_repo(service: str, branch: Optional[str] = None) -> Path:
     clone URL 里内嵌 token，Agent 推特性分支时无需再鉴权。
     仓名默认取 config.GITHUB_REPO（当前 MVP 是单仓）。
 
-    `branch`：如果这个 bug 实际活在某个尚未合并进默认分支的分支上（比如某个场景的告警
-    明确指出"这个功能还在 feature/xxx 分支上开发"），由编排层从告警的 `fixture_branch`
-    字段（而不是让 Agent 自己去猜/relay）显式传进来，clone 时直接切到那个分支，
-    ——这是确定性的代码路径，不依赖 LLM 是否忠实转述这条信息。
+    `branch`：可选。当前所有场景的 bug 都直接放在上游仓的默认分支（master）上，
+    clone 默认分支即可、不需要传。这个参数是「bug 活在某个指定分支」形态的预留
+    扩展位：若调用方明确知道目标分支，就显式传入（而不是让 Agent 自己去猜），
+    clone 时直接切到那个分支——确定性代码路径，不依赖 LLM 是否忠实转述。
     """
     config.WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
     dest = config.WORKSPACE_DIR / config.GITHUB_REPO
@@ -93,8 +93,8 @@ def parse_fix(out: dict[str, Any]) -> FixResult:
 async def code_fix(rc: dict, cwd: Optional[str] = None, branch: Optional[str] = None) -> dict[str, Any]:
     """在 clone 好的仓里运行 代码修复 Agent。返回 {fix: FixResult, meta: {...}}。
 
-    `branch`：见 `clone_service_repo` 的说明——由调用方（`agent/run.py`）从告警的
-    `fixture_branch` 字段透传进来，不经过 LLM 的诊断结果 dict。
+    `branch`：见 `clone_service_repo` 的说明——可选的「bug 在指定分支」扩展位，
+    由调用方显式传入；当前无场景使用（所有 bug 都在默认分支 master 上）。
     """
     if cwd is None:
         repo = clone_service_repo(rc.get("suspect_service", config.GITHUB_REPO), branch=branch)

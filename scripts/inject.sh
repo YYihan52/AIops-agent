@@ -53,7 +53,10 @@ case "$SCENARIO" in
       echo "[inject] run ./scripts/seed-github.sh first (it writes deploys.log + the leak commit)."
       exit 1
     fi
-    FIXTURE="$ROOT/scripts/fixtures/recommendation"
+    # Build from the master-layout fixture (= the code on master at the leak
+    # commit: all features + the unbounded seen-id history), so the running
+    # container matches what the git history / deploys.log point at.
+    FIXTURE="$ROOT/scripts/fixtures/recommendation-master"
     IMAGE="recommendation:$BAD_SHA"
 
     echo "[inject] building $IMAGE from leak commit ($BAD_SHA) — pure-stdlib image, fast build…"

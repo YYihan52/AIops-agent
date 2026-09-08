@@ -1,5 +1,11 @@
 # recommendation-race-stats fixture
 
+> **Historical note (2026-09, Phase B)**: the feature-branch seeding below is
+> retired. The `feature/*` branches were deleted from the upstream repo; this
+> bug (same code, same regression test) now lives directly on **master**, seeded
+> from `scripts/fixtures/recommendation-master/`. This directory remains as a
+> local docker-fixture source (it is still referenced by out-of-repo tooling).
+
 Seeds the `feature/race-stats` branch on `github.com/HuaiNan54321/recommendation`
 (branched from the clean pre-leak baseline, same rationale as
 `recommendation-ranking/README.md` — see that file for "why separate
