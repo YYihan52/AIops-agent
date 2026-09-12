@@ -17,3 +17,25 @@ services:
   jaeger:
     ports: !override
       - "16686:16686"
+
+  # 2026-09-10 评测期间发现：kafka 在 fraud-detection consumer group 高频 rebalance
+  # 下反复顶到上游 otel-demo 默认的内存 cap（kafka 620M / fraud-detection 300M /
+  # opensearch 1.1G），触发 OOM -> restart -> DUPLICATE_BROKER_REGISTRATION 循环
+  # （RestartCount 短时间内 26->32），导致 kafka-consumer-groups.sh 查询直接 hang 死。
+  # 本机 Colima VM 实测总内存 ~11.65GiB，此刻全部容器合计只用了 ~5.8GiB，有充足余量，
+  # 适当调大这三个上游默认值以消除该抖动（只影响本地评测环境资源配置，不改上游镜像/代码）。
+  kafka:
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+  fraud-detection:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+  opensearch:
+    deploy:
+      resources:
+        limits:
+          memory: 1536M

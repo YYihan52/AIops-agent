@@ -10,3 +10,4 @@ workspace
 reports/
 vendor/
 deploys.log
+app/
