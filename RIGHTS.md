@@ -6,4 +6,3 @@ Copyright © 2026 YYihan52. All rights reserved.
 
 第三方组件由各自的许可证约束。本声明不覆盖第三方代码，也不改变其许可证授予的权利。项目通过下载脚本获取 OpenTelemetry Demo 作为被监控的演示系统，其 Apache-2.0 许可证和版权声明应随该组件保留。
 
-历史提交已从原账号迁移到 YYihan52，并整理了自有文档的表述。
