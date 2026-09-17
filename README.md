@@ -1,3 +1,22 @@
+<p align="center">
+  <img src="docs/assets/aiops-agent-banner.png" alt="AIOps Agent：故障诊断与修复" width="100%">
+</p>
+
+<h3 align="center">An AIOps Agent for Root Cause Analysis and Risk-Based Remediation</h3>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-45b8ac?style=for-the-badge" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/Agent_SDK-Claude-7c6cf2?style=for-the-badge" alt="Claude Agent SDK">
+  <img src="https://img.shields.io/badge/Backend-Kubernetes-529cf2?style=for-the-badge" alt="Kubernetes 后端">
+  <img src="https://img.shields.io/badge/Memory-Milvus-00b8df?style=for-the-badge" alt="Milvus 故障记忆">
+</p>
+
+<p align="center">
+  <sub>Root Cause Analysis · Risk-Based Remediation · Low-Risk Auto-Remediation · Code Fix PRs · Incident Memory Retrieval · Human Approval</sub>
+</p>
+
+---
+
 # AIOps 故障诊断和修复 Agent
 
 把告警变成**根因诊断 + 分级处置 + 自动修复**：低风险线上操作（滚动重启/迁移/抬高资源上限单个工作负载）Agent 自动执行止血、高风险操作（redis/db/删除/改集群/缩容）发飞书卡片交人工，代码 bug 类自动改码并提 PR（人工评审合并），混合根因两条腿都走。「能自动执行哪些操作」由代码层一份可枚举的白名单硬控（不靠提示词）。基于 **Claude Agent SDK** 单引擎、两趟、按风险分级处置。设计细节见 [`AIOps-Agent-技术方案.md`](AIOps-Agent-技术方案.md)。
