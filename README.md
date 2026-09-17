@@ -21,6 +21,12 @@
 
 把告警变成**根因诊断 + 分级处置 + 自动修复**：低风险线上操作（滚动重启/迁移/抬高资源上限单个工作负载）Agent 自动执行止血、高风险操作（redis/db/删除/改集群/缩容）发飞书卡片交人工，代码 bug 类自动改码并提 PR（人工评审合并），混合根因两条腿都走。「能自动执行哪些操作」由代码层一份可枚举的白名单硬控（不靠提示词）。基于 **Claude Agent SDK** 单引擎、两趟、按风险分级处置。设计细节见 [`AIOps-Agent-技术方案.md`](AIOps-Agent-技术方案.md)。
 
+<p align="center">
+  <a href="docs/assets/aiops-agent-architecture.png">
+    <img src="docs/assets/aiops-agent-architecture.png" alt="AIOps Agent 架构：Agentic RAG 自主检索、诊断与分级处置、代码修复、人工介入和故障经验回流" width="100%">
+  </a>
+</p>
+
 **运行环境：以 Kubernetes 为主**——生产运维基本盘就是 k8s，诊断 Agent 的观测（`kubectl get/describe/top`）与自动止血（`kubectl rollout restart` / `delete pod` / `set resources`）都以 kubectl 为主形态。为了让使用者**零门槛先跑通**，默认后端是 **docker**（一台机器 `docker compose up` 即可，无需集群）；想体验生产形态就 `export AIOPS_BACKEND=k8s` 并起一个 kind 集群（见 [快速开始](#快速开始)）。两套后端语义一一对应，切换只改一个环境变量，代码其余部分无感知。
 
 已完成从告警到 PR 的**完整端到端真实闭环验证**（内存泄漏 capstone）：真工作负载跑到 OOM 重启、Agent 实地观测定位到发版 commit、改成有界结构、测试从红转绿、提出一个推不上 master 的 PR。
